@@ -3,21 +3,21 @@ package puzzles
 import (
 	"testing"
 
-	"puzzles/solutions/puzzle01"
-	"puzzles/solutions/puzzle02"
-	"puzzles/solutions/puzzle03"
-	"puzzles/solutions/puzzle04"
-	"puzzles/solutions/puzzle05"
+	"puzzles/solutions/s01"
+	"puzzles/solutions/s02"
+	"puzzles/solutions/s03"
+	"puzzles/solutions/s04"
+	"puzzles/solutions/s05"
 
 	"github.com/liennie/code-and-chill/pkg/eventtest"
 )
 
 func TestEvent(t *testing.T) {
 	eventtest.Test(t, "event.yaml",
-		puzzle01.Solution,
-		puzzle02.Solution,
-		puzzle03.Solution,
-		puzzle04.Solution,
-		puzzle05.Solution,
+		s01.Solution,
+		s02.Solution,
+		s03.Solution,
+		s04.Solution,
+		s05.Solution,
 	)
 }
