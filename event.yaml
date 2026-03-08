@@ -1,0 +1,17 @@
+id: gt7
+name: garage::trip::7.0.0
+puzzles:
+  - config: puzzles/01/puzzle.yaml
+    unlock: 2026-09-13T10:00:00+01:00
+
+  - config: puzzles/02/puzzle.yaml
+    unlock: 2026-09-14T10:00:00+01:00
+
+  - config: puzzles/03/puzzle.yaml
+    unlock: 2026-09-15T10:00:00+01:00
+
+  - config: puzzles/04/puzzle.yaml
+    unlock: 2026-09-16T10:00:00+01:00
+
+  - config: puzzles/05/puzzle.yaml
+    unlock: 2026-09-17T10:00:00+01:00

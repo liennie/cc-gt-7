@@ -1,0 +1,36 @@
+id:
+path:
+name: "04:"
+
+parts:
+  - id: "part1"
+    file: part1.md
+
+  - id: "part2"
+    file: part2.md
+
+inputs:
+  - file: inputs/01.txt
+    answers:
+      - 0
+      - 0
+
+  - file: inputs/02.txt
+    answers:
+      - 0
+      - 0
+
+  - file: inputs/03.txt
+    answers:
+      - 0
+      - 0
+
+  - file: inputs/04.txt
+    answers:
+      - 0
+      - 0
+
+  - file: inputs/05.txt
+    answers:
+      - 0
+      - 0
