@@ -1,36 +1,36 @@
-id:
-path:
-name: "02:"
+id: "02"
+path: "the-masters-blend"
+name: "02: The Master's Blend"
 
 parts:
-  - id: part1
+  - id: "1"
     file: part1.md
 
-  - id: part2
+  - id: "2"
     file: part2.md
 
 inputs:
   - file: inputs/01.txt
     answers:
-      - 0
-      - 0
+      - "1890"
+      - "723491704828"
 
   - file: inputs/02.txt
     answers:
-      - 0
-      - 0
+      - "1890"
+      - "631477939050"
 
   - file: inputs/03.txt
     answers:
-      - 0
-      - 0
+      - "452"
+      - "944235325140"
 
   - file: inputs/04.txt
     answers:
-      - 0
-      - 0
+      - "2856"
+      - "1077260446036"
 
   - file: inputs/05.txt
     answers:
-      - 0
-      - 0
+      - "1332"
+      - "799098816148"

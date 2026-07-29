@@ -1,36 +1,36 @@
-id:
-path:
-name: "03:"
+id: "03"
+path: "bunker-sprint"
+name: "03: Bunker Sprint"
 
 parts:
-  - id: part1
+  - id: "1"
     file: part1.md
 
-  - id: part2
+  - id: "2"
     file: part2.md
 
 inputs:
   - file: inputs/01.txt
     answers:
-      - 0
-      - 0
+      - "865"
+      - "265"
 
   - file: inputs/02.txt
     answers:
-      - 0
-      - 0
+      - "701"
+      - "277"
 
   - file: inputs/03.txt
     answers:
-      - 0
-      - 0
+      - "521"
+      - "313"
 
   - file: inputs/04.txt
     answers:
-      - 0
-      - 0
+      - "789"
+      - "257"
 
   - file: inputs/05.txt
     answers:
-      - 0
-      - 0
+      - "697"
+      - "285"

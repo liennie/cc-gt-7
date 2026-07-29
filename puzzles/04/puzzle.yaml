@@ -1,36 +1,36 @@
-id:
-path:
-name: "04:"
+id: "04"
+path: "boot-choreography"
+name: "04: Boot Choreography"
 
 parts:
-  - id: part1
+  - id: "1"
     file: part1.md
 
-  - id: part2
+  - id: "2"
     file: part2.md
 
 inputs:
   - file: inputs/01.txt
     answers:
-      - 0
-      - 0
+      - "-557775349"
+      - "2791931"
 
   - file: inputs/02.txt
     answers:
-      - 0
-      - 0
+      - "988403367"
+      - "5926868"
 
   - file: inputs/03.txt
     answers:
-      - 0
-      - 0
+      - "1033228639"
+      - "-7986246"
 
   - file: inputs/04.txt
     answers:
-      - 0
-      - 0
+      - "-1598083723"
+      - "-9450015"
 
   - file: inputs/05.txt
     answers:
-      - 0
-      - 0
+      - "408421131"
+      - "7824336"

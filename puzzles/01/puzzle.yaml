@@ -1,36 +1,36 @@
-id:
-path:
-name: "01:"
+id: "01"
+path: "lucky-sevens"
+name: "01: Lucky Sevens"
 
 parts:
-  - id: part1
+  - id: "1"
     file: part1.md
 
-  - id: part2
+  - id: "2"
     file: part2.md
 
 inputs:
   - file: inputs/01.txt
     answers:
-      - 0
-      - 0
+      - "31"
+      - "56842165683797805"
 
   - file: inputs/02.txt
     answers:
-      - 0
-      - 0
+      - "31"
+      - "50543652303855546"
 
   - file: inputs/03.txt
     answers:
-      - 0
-      - 0
+      - "39"
+      - "58569109103239985"
 
   - file: inputs/04.txt
     answers:
-      - 0
-      - 0
+      - "32"
+      - "55960769019965964"
 
   - file: inputs/05.txt
     answers:
-      - 0
-      - 0
+      - "33"
+      - "51855039244186640"

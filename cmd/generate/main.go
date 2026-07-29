@@ -14,7 +14,7 @@ import (
 
 const inputCount = 5
 
-var generators = map[string]func() []byte{
+var generators = map[string]func(idx int) []byte{
 	"puzzles/01/inputs": g01.Generate,
 	"puzzles/02/inputs": g02.Generate,
 	"puzzles/03/inputs": g03.Generate,
@@ -25,7 +25,7 @@ var generators = map[string]func() []byte{
 func main() {
 	for outputDir, generator := range generators {
 		for idx := range inputCount {
-			input := generator()
+			input := generator(idx)
 			err := os.WriteFile(filepath.Join(filepath.FromSlash(outputDir), fmt.Sprintf("%02d.txt", idx+1)), input, 0666)
 			if err != nil {
 				panic(err)

@@ -1,36 +1,36 @@
-id:
-path:
-name: "05:"
+id: "05"
+path: "barcamp-lineup"
+name: "05: Barcamp Lineup"
 
 parts:
-  - id: part1
+  - id: "1"
     file: part1.md
 
-  - id: part2
+  - id: "2"
     file: part2.md
 
 inputs:
   - file: inputs/01.txt
     answers:
-      - 0
-      - 0
+      - "8697"
+      - "25746"
 
   - file: inputs/02.txt
     answers:
-      - 0
-      - 0
+      - "11430"
+      - "26597"
 
   - file: inputs/03.txt
     answers:
-      - 0
-      - 0
+      - "7210"
+      - "27155"
 
   - file: inputs/04.txt
     answers:
-      - 0
-      - 0
+      - "8192"
+      - "27832"
 
   - file: inputs/05.txt
     answers:
-      - 0
-      - 0
+      - "8217"
+      - "30313"
