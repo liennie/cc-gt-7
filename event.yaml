@@ -17,9 +17,9 @@ puzzles:
     unlock: 2026-09-17T10:00:00+02:00
 
 contacts:
-  - title: General discussion
-    link: https://discord.com/channels/1472383140310814783/1472427358165139669
-    private: true
+  # - title: General discussion
+  #   link: https://discord.com/channels/1472383140310814783/1472427358165139669
+  #   private: true
   - title: Liennie.sh
     link: https://discord.com/users/222645522794676225
     private: true
