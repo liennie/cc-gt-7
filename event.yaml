@@ -19,7 +19,9 @@ puzzles:
 contacts:
   - title: General discussion
     link: https://discord.com/channels/1472383140310814783/1472427358165139669
+    private: true
   - title: Liennie.sh
     link: https://discord.com/users/222645522794676225
+    private: true
   - title: Code && Chill
     link: https://github.com/liennie/code-and-chill
