@@ -65,4 +65,4 @@ group, and `bulanci_hot_takes`, `sauna_field_notes` form another.
 The pair `factorio_deep_dive / bulanci_101` share a
 group (via `factorio_101`) and contribute nothing, while
 `factorio_deep_dive / sauna_field_notes` span two groups and
-contribute `60 + 30 = 90` - so the answer is `90`.
+contribute *60 + 30*, so the answer is `90`.

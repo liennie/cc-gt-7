@@ -18,4 +18,4 @@ For the example in part 1, treat each group independently:
   `bulanci_hot_takes` alone gives `40`; taking `sauna_field_notes`
   alone gives `30`. Best = `40`.
 
-Total = `75 + 40 = 115`.
+Total = *75 + 40* = `115`.

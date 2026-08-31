@@ -84,4 +84,4 @@ OUT A
 ````
 
 Booted with all-zero memory the program emits `V0 = 1` and
-`V1 = -1`, giving a digest of `1×1 + 10×(-1) = -9`.
+`V1 = -1`, giving a digest of *1×1 + 10×(-1)* = `-9`.

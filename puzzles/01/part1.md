@@ -29,5 +29,5 @@ exactly `7.00`.
 3.50
 ```
 
-In the example, the only lucky pair is `3.50 + 3.50`, so the answer is
+In the example, the only lucky pair is *3.50 + 3.50*, so the answer is
 `1`.

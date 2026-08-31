@@ -84,4 +84,4 @@ Tracing tick by tick:
 | 6    | ``Hz*Ax*Cf``   | ``SmLc > *Ax*`` (first ash)                   |
 
 `Ax` first appears at tick `6`, at position `2` in the blend
-``Hz*Ax*Cf``, so the answer is 6 × 2 = `12`.
+``Hz*Ax*Cf``, so the answer is *6 × 2* = `12`.

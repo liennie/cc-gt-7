@@ -21,4 +21,4 @@ Return the positional base-10 digest of the six values:
 
 For the same `17`-line program from part 1, writing `X0 = -2` into
 cell `0` and `X1 = 3` into cell `1` before booting zeros both outputs,
-so the scaled-down digest is `1×(-2) + 10×3 = 28`.
+so the scaled-down digest is *1×(-2) + 10×3* = `28`.
