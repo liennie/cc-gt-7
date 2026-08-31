@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/liennie/AdventOfCode v0.0.0-20251215111723-48c99ba507b1
-	github.com/liennie/code-and-chill v0.0.0-20260830013742-457b95c39d06
+	github.com/liennie/code-and-chill v0.0.0-20260830022246-73d290c9f43d
 )
 
 require (
