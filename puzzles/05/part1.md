@@ -34,8 +34,7 @@ Your puzzle input has three sections separated by blank lines:
 
 A *topic group* is a group of talks tied together by conflicts. Two
 talks share a group if you can walk from one to the other by hopping
-along direct conflicts, and a group keeps growing until every talk it
-can reach that way is included.
+along direct conflicts.
 
 ## Part 1
 
