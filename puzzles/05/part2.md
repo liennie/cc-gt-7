@@ -9,13 +9,10 @@ subsets, he wants the one that *maximises total hype*.
 Formally, find the maximum total hype of a subset `S` of talks such
 that no two members of `S` are connected by a conflict edge.
 
-For the example in part 1, treat each group independently:
+For the example in part 1, the best subset is:
 
-* From `factorio_deep_dive - factorio_101 - bulanci_101`: taking
-  `factorio_101` alone gives `25`; taking `factorio_deep_dive` plus
-  `bulanci_101` gives `60 + 15`. Best = `75`.
-* From `bulanci_hot_takes - sauna_field_notes`: taking
-  `bulanci_hot_takes` alone gives `40`; taking `sauna_field_notes`
-  alone gives `30`. Best = `40`.
+* `factorio_deep_dive` with hype score of *60*,
+* `bulanci_101` with hype score of *15*,
+* `bulanci_hot_takes` with hype score of *40*.
 
-Total = *75 + 40* = `115`.
+Total = *60 + 15 + 40* = `115`.
