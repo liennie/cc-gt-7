@@ -12,12 +12,12 @@ parts:
 inputs:
   - file: inputs/01.txt
     answers:
-      - "1890"
+      - "420"
       - "723491704828"
 
   - file: inputs/02.txt
     answers:
-      - "1890"
+      - "1260"
       - "631477939050"
 
   - file: inputs/03.txt
@@ -32,5 +32,5 @@ inputs:
 
   - file: inputs/05.txt
     answers:
-      - "1332"
+      - "444"
       - "799098816148"

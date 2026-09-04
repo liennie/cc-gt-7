@@ -25,13 +25,16 @@ import (
 // the growth/decay shapes: expansion (`C > CC`, `C > CCC`, `CF > CCF'`,
 // …) paired with consolidation (`CC > D`, `CCF > D F`, `CCCF > D F'`, …).
 //
-// Every catalyst is drawn fresh from a global pool and is consumed by
-// exactly one rule, so no rule LHS ever appears as a substring of an
-// earlier state — exactly one rule per group fires per tick. Group cycle
-// length therefore equals the total number of rules in the group. That
-// count is then padded up to L_i by distributing extra smolder ticks
-// across a large majority of the rules with mildly randomised shares so
-// that individual rule timings stay modest and spread out.
+// Every compound (starting token, catalyst, or former "fence") is drawn
+// fresh from one global pool, so the 5 groups have strictly disjoint
+// token alphabets and Ax is the only compound they share. Each token is
+// consumed by exactly one rule, so no rule LHS ever appears as a
+// substring of an earlier state — exactly one rule per group fires per
+// tick. Group cycle length therefore equals the total number of rules in
+// the group. That count is then padded up to L_i by distributing extra
+// smolder ticks across a large majority of the rules with mildly
+// randomised shares so that individual rule timings stay modest and
+// spread out.
 //
 // The ash-consumer rule keeps smolder 1 so ash lives for exactly one
 // tick per group per cycle.
@@ -47,33 +50,11 @@ func Generate(idx int) []byte {
 	})
 	Ls := primePool[:5]
 
-	// Small pool of "fence" flavor tokens. The 5 starting fences are drawn
-	// distinct from each other; intermediate fences are drawn from the pool
-	// EXCLUDING any starting fence, so that no group's intermediate fence
-	// can accidentally trigger another group's starting-fence rule.
-	fencePool := []string{
-		"Ap", "Vn", "Ci", "Mn", "Rs", "Cn", "Cl", "Ho",
-		"Ch", "Cf", "Gr", "Pl", "Mg", "Kw", "Pn",
-	}
-	fenceShuf := append([]string(nil), fencePool...)
-	r.Shuffle(len(fenceShuf), func(i, j int) {
-		fenceShuf[i], fenceShuf[j] = fenceShuf[j], fenceShuf[i]
-	})
-	startingFences := make([]string, 5)
-	copy(startingFences, fenceShuf[:5])
-	isStarting := make(map[string]bool, 5)
-	for _, f := range startingFences {
-		isStarting[f] = true
-	}
-	intermediatePool := make([]string, 0, len(fencePool)-5)
-	for _, f := range fencePool {
-		if !isStarting[f] {
-			intermediatePool = append(intermediatePool, f)
-		}
-	}
-
-	// Large pool of pronounceable 2-letter tokens for catalysts.
-	catalystPool := makeCatalystPool(fencePool)
+	// One global pool of fresh 2-letter tokens serves every non-Ax draw:
+	// each group's starting compound and every "catalyst" / "fence" token
+	// it uses. Draws are strictly sequential from a shuffled pool, so the
+	// 5 groups never share any token.
+	catalystPool := makeCatalystPool()
 	r.Shuffle(len(catalystPool), func(i, j int) {
 		catalystPool[i], catalystPool[j] = catalystPool[j], catalystPool[i]
 	})
@@ -83,8 +64,13 @@ func Generate(idx int) []byte {
 		catIdx++
 		return s
 	}
-	drawFence := func() string {
-		return intermediatePool[r.IntN(len(intermediatePool))]
+	// Kept as an alias so the buildGroup helpers can preserve their
+	// original two-closure signatures without change.
+	drawFence := drawCat
+
+	startingFences := make([]string, 5)
+	for i := range startingFences {
+		startingFences[i] = drawCat()
 	}
 
 	var allRules []genRule
@@ -793,17 +779,14 @@ func distributeSmolder(r *rand.Rand, rules []genRule, L int) {
 }
 
 // makeCatalystPool returns a list of pronounceable-ish 2-letter tokens
-// (uppercase letter followed by lowercase letter), excluding fence names
-// and Ax. The pool must be large enough for all fresh catalysts drawn
-// across all steps of all groups (a few hundred typically).
-func makeCatalystPool(fencePool []string) []string {
+// (uppercase letter followed by lowercase letter), excluding Ax. The
+// pool must be large enough for every fresh token drawn across all
+// groups (starting compounds, catalysts, and former fences).
+func makeCatalystPool() []string {
 	reserved := map[string]bool{"Ax": true}
-	for _, f := range fencePool {
-		reserved[f] = true
-	}
 	const (
-		upper = "BCDFGHJKLMNPRSTVWZ"
-		lower = "abcdefghijklmnoprstuvwyz"
+		upper = "BCDFGHJKLMNPQRSTVWXYZ"
+		lower = "abcdefghijklmnopqrstuvwxyz"
 	)
 	var pool []string
 	add := func(s string) {

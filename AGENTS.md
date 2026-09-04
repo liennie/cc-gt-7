@@ -296,11 +296,11 @@ independent set across the forest.
 
 | # | 01               | 02               | 03           | 04                                | 05        |
 |---|------------------|------------------|--------------|-----------------------------------|-----------|
-| 1 | 31 / 56842165683797805 | 1890 / 723491704828 | 865 / 265 | -557775349 / 2791931       | 8697 / 25746 |
-| 2 | 31 / 50543652303855546 | 1890 / 631477939050 | 701 / 277 | 988403367 / 5926868        | 11430 / 26597 |
+| 1 | 31 / 56842165683797805 | 420 / 723491704828 | 865 / 265 | -557775349 / 2791931       | 8697 / 25746 |
+| 2 | 31 / 50543652303855546 | 1260 / 631477939050 | 701 / 277 | 988403367 / 5926868        | 11430 / 26597 |
 | 3 | 39 / 58569109103239985 | 452 / 944235325140 | 521 / 313 | 1033228639 / -7986246       | 7210 / 27155 |
 | 4 | 32 / 55960769019965964 | 2856 / 1077260446036 | 789 / 257 | -1598083723 / -9450015    | 8192 / 27832 |
-| 5 | 33 / 51855039244186640 | 1332 / 799098816148 | 697 / 285 | 408421131 / 7824336        | 8217 / 30313 |
+| 5 | 33 / 51855039244186640 | 444 / 799098816148 | 697 / 285 | 408421131 / 7824336        | 8217 / 30313 |
 
 ## Conventions and gotchas
 
@@ -314,8 +314,10 @@ independent set across the forest.
   `s02: overlapping rule matches at tick T: [pos p1 len l1] and [pos p2 len l2]`.
   Do not silence this panic — a trigger means the generator broke the
   chain-uniqueness property.
-- **Puzzle 02 rule shapes** on input 01: ~42 `1>1`, 48 `2>2`, 5 `3>3`,
-  12 `1>0` decays. Empty RHS emitted without trailing space.
+- **Puzzle 02 rule shapes** on input 01: 54 `1>1`, 49 `2>2`, 10 `3>3`,
+  4 `4>4`, and 12 `1>0` decays, plus a mix of size-changing shapes
+  (`1>2`, `1>3`, `1>4`, `2>1`, `2>3`, `2>4`, `3>1`, `3>2`, `4>2`).
+  Empty RHS emitted without trailing space.
 - **Puzzle 03 dive/wall-destruction split**: the puzzle text tells the
   player that bombs pre-detonate `3 × 3` wall craters and then the
   sprint runs by Part 1's rules. The shipped solver actually runs a
