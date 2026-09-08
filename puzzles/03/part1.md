@@ -31,7 +31,7 @@ the grid.
 
 ## Part 1
 
-Find the length of the **shortest walk** from `S` to `E`, counting each
+Find the length of the *shortest walk* from `S` to `E`, counting each
 step as one.
 
 ### Example

@@ -62,9 +62,9 @@ factorio_deep_dive sauna_field_notes
 Here `factorio_deep_dive`, `factorio_101` and `bulanci_101` form one
 group, and `bulanci_hot_takes`, `sauna_field_notes` form another.
 
-- `factorio_deep_dive / bulanci_101` share a
-group and contribute nothing,
-- `factorio_deep_dive / sauna_field_notes` span two groups and
+* `factorio_deep_dive` and `bulanci_101` share a
+group and contribute nothing, and
+* `factorio_deep_dive` and `sauna_field_notes` span two groups and
 contribute *60 + 30*,
 
 so the answer is `90`.

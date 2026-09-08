@@ -13,10 +13,10 @@ that the boot ROM was compiled from.
 
 The GT-Nano is a tiny virtual machine with:
 
-* **six signed-integer registers** `A B C D E F`, all initially zero;
-* an **infinite tape** of signed-integer cells indexed by a signed
+* *six signed-integer registers* `A B C D E F`, all initially zero;
+* an *infinite tape* of signed-integer cells indexed by a signed
   cursor `cur`, all cells initially zero;
-* an **output stream** of numbers, initially empty;
+* an *output stream* of numbers, initially empty.
 
 ## Instruction set
 
@@ -63,7 +63,7 @@ base-10 digest*
 Consider a small program that emits `2` outputs (instead of `6`), so its
 scaled-down digest is `1×V0 + 10×V1`:
 
-````
+```
 SET A 1
 LOAD B
 SET C 2
@@ -81,7 +81,7 @@ LEFT
 LOAD B
 ADD A B
 OUT A
-````
+```
 
 Booted with all-zero memory the program emits `V0 = 1` and
 `V1 = -1`, giving a digest of *1×1 + 10×(-1)* = `-9`.

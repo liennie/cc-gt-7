@@ -74,14 +74,14 @@ Cf 7> Ax
 
 Tracing tick by tick:
 
-| tick | blend          | notes                                         |
-| ---: | :-----------   | :-------------------------------------------- |
-| 0    | `ApVn`         | `Vn 2>` and `Ap 3>` both fire                 |
-| 1    | `ApVn`         | both still smoldering                         |
-| 2    | ``Ap*LcCf*``   | ``Vn > *LcCf*``; `Cf 7>` fires                |
-| 3    | ``*HzSm*LcCf`` | ``Ap > *HzSm*``; `Hz 9>` and `SmLc 3>` fire   |
-| ...  |                | everything is smoldering                      |
-| 6    | ``Hz*Ax*Cf``   | ``SmLc > *Ax*`` (first ash)                   |
+| tick | blend          | applied rule | matched rule |
+| ---: | :-----------   | :-------------------------------------------- | :--- |
+| 0    | `ApVn`         | | `Ap 3>`, `Vn 2>`                 |
+| 1    | `ApVn`         |  |
+| 2    | ``Ap*LcCf*``   | ``Vn 2> *LcCf*`` | `Cf 7>`                |
+| 3    | ``*HzSm*LcCf`` | ``Ap 3> *HzSm*`` | `Hz 9>`, `SmLc 3>`   |
+| ...  |                |                     |
+| 6    | ``Hz*Ax*Cf``   | ``SmLc 3> *Ax*`` (first ash)       |            |
 
-`Ax` first appears at tick `6`, at position `2` in the blend
+`Ax` first appears at tick *6*, at position *2* in the blend
 ``Hz*Ax*Cf``, so the answer is *6 × 2* = `12`.
