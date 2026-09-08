@@ -2,6 +2,7 @@
 package s04
 
 import (
+	"bytes"
 	"math/big"
 	"strconv"
 	"strings"
@@ -41,7 +42,6 @@ func parseOperand(s string) operand {
 }
 
 func parseProgram(src string) []instr {
-	src = strings.ReplaceAll(src, "\r\n", "\n")
 	var prog []instr
 	for _, raw := range strings.Split(src, "\n") {
 		if i := strings.IndexByte(raw, ';'); i >= 0 {
@@ -167,6 +167,9 @@ func mulChecked(a, b int64) int64 {
 }
 
 func Solution(input []byte) []string {
+	if bytes.IndexByte(input, '\r') >= 0 {
+		panic("s04: CR in input, expected LF-only")
+	}
 	prog := parseProgram(string(input))
 	b := runVM(prog, nil)
 	n := len(b)

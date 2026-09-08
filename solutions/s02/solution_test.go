@@ -228,11 +228,10 @@ CdAx 1> Bt`,
 }
 
 func parseInputForTest(input []byte) ([]string, []Rule) {
-	text := strings.ReplaceAll(string(input), "\r\n", "\n")
 	var initial []string
 	var rules []Rule
 	seenBlend := false
-	for _, raw := range strings.Split(text, "\n") {
+	for _, raw := range strings.Split(string(input), "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
@@ -247,4 +246,72 @@ func parseInputForTest(input []byte) ([]string, []Rule) {
 		}
 	}
 	return initial, rules
+}
+
+func TestSolutionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		want1, want2 string
+	}{
+		{
+			name: "cycle 2 single group",
+			// [Fs] -> [Ax] -> [Fs]. Cycle 2. Ax at pos1=1 on tick 1.
+			input: "Fs\n\nFs 1> Ax\nAx 1> Fs\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "size-change with empty-RHS decay",
+			// [Fs] -> [Ax, Tm] -> [Fs]. Decay Tm 1> and Ax 1> Fs fire in
+			// parallel at tick 1; applyCompletions R->L handles both.
+			input: "Fs\n\nFs 1> AxTm\nAx 1> Fs\nTm 1>\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "size expansion 1->3",
+			// [Fs] -> [Ax, Bp, Cp] -> [Fs]. Multi-token LHS on the return leg.
+			input: "Fs\n\nFs 1> AxBpCp\nAxBpCp 1> Fs\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "multi-group tick-0 fires, Ax at pos 2",
+			// Two groups, cycles 3 and 2. At tick 0 both starters fire in
+			// parallel; group 2's smolder-1 delivers its Ax at tick 1 to
+			// position 2 (0-indexed 1) of the whole blend [Fs, Ax, Is].
+			// Part 1 = tick * pos1 = 1 * 2 = 2. Part 2 = LCM(3,2) - 1 = 5.
+			input: "FsGs\n\nFs 2> AxHs\nAxHs 1> Fs\nGs 1> AxIs\nAxIs 1> Gs\n",
+			want1: "2",
+			want2: "5",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Solution([]byte(tc.input))
+			if len(got) != 2 {
+				t.Fatalf("expected 2 answers, got %d", len(got))
+			}
+			if got[0] != tc.want1 {
+				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
+			}
+			if got[1] != tc.want2 {
+				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
+			}
+		})
+	}
+}
+
+func TestSolutionRejectsCR(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on CR input, got none")
+		}
+		if !strings.Contains(fmt.Sprint(r), "CR in input") {
+			t.Errorf("panic message: %v", r)
+		}
+	}()
+	Solution([]byte("Fs\r\n\r\nFs 1> Ax\r\n"))
 }

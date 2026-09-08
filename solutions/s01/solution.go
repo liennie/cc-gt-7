@@ -2,6 +2,7 @@
 package s01
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 )
@@ -56,6 +57,9 @@ func parseCents(s string) (int, bool) {
 }
 
 func Solution(input []byte) []string {
+	if bytes.IndexByte(input, '\r') >= 0 {
+		panic("s01: CR in input, expected LF-only")
+	}
 	const target = 700 // 7.00 in cents
 
 	var nums []int

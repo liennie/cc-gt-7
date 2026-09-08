@@ -1,6 +1,7 @@
 package s03
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -180,4 +181,26 @@ S...#.........#
 			}
 		})
 	}
+}
+
+func TestSolutionAdjacentSE(t *testing.T) {
+	// 1x2 grid, S and E on the same row. Walk takes one step; Part 2's
+	// dive graph doesn't beat that.
+	got := Solution([]byte("SE\n"))
+	if got[0] != "1" || got[1] != "1" {
+		t.Errorf("SE adjacent: got %v, want [1 1]", got)
+	}
+}
+
+func TestSolutionRejectsCR(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on CR input, got none")
+		}
+		if !strings.Contains(fmt.Sprint(r), "CR in input") {
+			t.Errorf("panic message: %v", r)
+		}
+	}()
+	Solution([]byte("S..\r\n...\r\n..E\r\n"))
 }

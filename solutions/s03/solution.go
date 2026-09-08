@@ -2,6 +2,7 @@
 package s03
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,7 @@ type state struct {
 
 func parseGrid(input []byte) (grid [][]byte, sr, sc, er, ec int) {
 	sr, sc, er, ec = -1, -1, -1, -1
-	for _, raw := range strings.Split(string(input), "\n") {
-		line := strings.TrimRight(raw, "\r")
+	for _, line := range strings.Split(string(input), "\n") {
 		if line == "" {
 			continue
 		}
@@ -37,6 +37,9 @@ func parseGrid(input []byte) (grid [][]byte, sr, sc, er, ec int) {
 }
 
 func Solution(input []byte) []string {
+	if bytes.IndexByte(input, '\r') >= 0 {
+		panic("s03: CR in input, expected LF-only")
+	}
 	grid, sr, sc, er, ec := parseGrid(input)
 	rows := len(grid)
 	cols := 0

@@ -205,3 +205,67 @@ func TestSolutionAgainstBruteforce(t *testing.T) {
 		}
 	}
 }
+
+func TestSolutionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		want1, want2 string
+	}{
+		{
+			name: "two-node tree",
+			// One edge a-b. Query "a b" same tree -> 0. Part 2: max(10, 20)=20.
+			input: `a 10
+b 20
+
+a b
+
+a b
+`,
+			want1: "0",
+			want2: "20",
+		},
+		{
+			name: "isolated node in own component",
+			// c has no conflicts, so it's a singleton component. Query "a c"
+			// crosses components -> 10+30 = 40. Part 2: max(a,b)=20 + c=30 = 50.
+			input: `a 10
+b 20
+c 30
+
+a b
+
+a c
+`,
+			want1: "40",
+			want2: "50",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Solution([]byte(tc.input))
+			if len(got) != 2 {
+				t.Fatalf("expected 2 answers, got %d", len(got))
+			}
+			if got[0] != tc.want1 {
+				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
+			}
+			if got[1] != tc.want2 {
+				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
+			}
+		})
+	}
+}
+
+func TestSolutionRejectsCR(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on CR input, got none")
+		}
+		if !strings.Contains(fmt.Sprint(r), "CR in input") {
+			t.Errorf("panic message: %v", r)
+		}
+	}()
+	Solution([]byte("a 5\r\nb 6\r\n\r\na b\r\n\r\na b\r\n"))
+}

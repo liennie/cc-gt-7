@@ -2,6 +2,7 @@
 package s02
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -32,8 +33,10 @@ type Rule struct {
 // the blend are Ax. In this puzzle each initial-blend token seeds an
 // independent cycle; the answer is LCM(cycle lengths) − 1.
 func Solution(input []byte) []string {
-	text := strings.ReplaceAll(string(input), "\r\n", "\n")
-	lines := strings.Split(text, "\n")
+	if bytes.IndexByte(input, '\r') >= 0 {
+		panic("s02: CR in input, expected LF-only")
+	}
+	lines := strings.Split(string(input), "\n")
 
 	var initial []string
 	var rules []Rule

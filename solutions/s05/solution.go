@@ -2,6 +2,7 @@
 package s05
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 )
@@ -17,6 +18,9 @@ import (
 // (a subset of nodes containing no conflict edge).
 
 func Solution(input []byte) []string {
+	if bytes.IndexByte(input, '\r') >= 0 {
+		panic("s05: CR in input, expected LF-only")
+	}
 	sections := splitBlank(string(input))
 	if len(sections) < 3 {
 		return []string{"0", "0"}
@@ -183,7 +187,6 @@ func addCheckedS05(a, b int64) int64 {
 // splitBlank splits s on runs of blank lines, returning the non-empty chunks
 // (each chunk preserves internal newlines).
 func splitBlank(s string) []string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
 	lines := strings.Split(s, "\n")
 	var out []string
 	var cur []string

@@ -143,3 +143,74 @@ func TestSolutionAgainstBruteforce(t *testing.T) {
 		}
 	}
 }
+
+func TestSolutionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		want1, want2 string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want1: "0",
+			want2: "0",
+		},
+		{
+			name: "single 7.00",
+			// One 7.00 tile: no pair; only the +7.00 selection hits target.
+			input: "7.00\n",
+			want1: "0",
+			want2: "1",
+		},
+		{
+			name: "three identical 3.50",
+			// C(3,2)=3 pairs summing to 7.00; Part 2 also 3 (add any 2 of 3).
+			input: "3.50\n3.50\n3.50\n",
+			want1: "3",
+			want2: "3",
+		},
+		{
+			name: "four identical 3.50",
+			// C(4,2)=6 pairs. Part 2: (add,sub)=(2,0):C(4,2)=6 + (3,1):C(4,3)*C(1,1)=4 = 10.
+			input: "3.50\n3.50\n3.50\n3.50\n",
+			want1: "6",
+			want2: "10",
+		},
+		{
+			name: "negative value forces negative t in DP",
+			// Values -200, 500, 400. Signed subsets summing to 700:
+			//   +(-200)+500+400 and -(-200)+500 (skip 400).
+			input: "-2.00\n5.00\n4.00\n",
+			want1: "0",
+			want2: "2",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Solution([]byte(tc.input))
+			if len(got) != 2 {
+				t.Fatalf("expected 2 answers, got %d", len(got))
+			}
+			if got[0] != tc.want1 {
+				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
+			}
+			if got[1] != tc.want2 {
+				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
+			}
+		})
+	}
+}
+
+func TestSolutionRejectsCR(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on CR input, got none")
+		}
+		if !strings.Contains(fmt.Sprint(r), "CR in input") {
+			t.Errorf("panic message: %v", r)
+		}
+	}()
+	Solution([]byte("1.00\r\n2.00\r\n"))
+}

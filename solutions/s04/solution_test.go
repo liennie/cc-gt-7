@@ -316,3 +316,52 @@ func det3(A [][]int64) int64 {
 		A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0]) +
 		A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0])
 }
+
+// n=1: V0 = 5 + m[0]. Part 1 digest = 5. x* = -5, Part 2 digest = -5.
+func TestSolutionOneVar(t *testing.T) {
+	input := `LOAD B
+SET A 5
+ADD A B
+OUT A
+`
+	got := Solution([]byte(input))
+	if len(got) != 2 || got[0] != "5" || got[1] != "-5" {
+		t.Errorf("got %v, want [5 -5]", got)
+	}
+}
+
+// Both outputs baseline negative -> Part 1 digest negative. Verifies
+// weightedSum handles negative b_i * 10^i terms via checked mul.
+//
+// V0 = -5 + m[0];  V1 = -3 - m[1]
+// Part 1 (mem = 0):  outputs [-5, -3],  digest = -5 + (-3)*10 = -35
+// Part 2 (x* = [5, -3]):  outputs [0, 0],  digest = 5 + (-3)*10 = -25
+func TestSolutionNegativeDigest(t *testing.T) {
+	input := `LOAD B
+SET A -5
+ADD A B
+OUT A
+RIGHT
+LOAD B
+SET A -3
+SUB A B
+OUT A
+`
+	got := Solution([]byte(input))
+	if len(got) != 2 || got[0] != "-35" || got[1] != "-25" {
+		t.Errorf("got %v, want [-35 -25]", got)
+	}
+}
+
+func TestSolutionRejectsCR(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on CR input, got none")
+		}
+		if !strings.Contains(fmt.Sprint(r), "CR in input") {
+			t.Errorf("panic message: %v", r)
+		}
+	}()
+	Solution([]byte("SET A 1\r\nOUT A\r\n"))
+}
