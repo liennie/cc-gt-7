@@ -1,258 +1,198 @@
-SET A 22551
-LOAD E
-SUB E 96
-SET D 50
-ADD A E
-SUB D 1
-JNZ D -2
-RIGHT
-LOAD B
-ADD B 62
-SET E 82
-SUB A B
-SUB E 1
-JNZ E -2
-RIGHT
-LOAD F
-ADD F 77
-SET D 91
-SUB A F
-SUB D 1
-JNZ D -2
-RIGHT
-LOAD B
-SUB B 93
-SET D 24
-ADD A B
-SUB D 1
-JNZ D -2
-RIGHT
-LOAD B
-ADD B 80
-SET F 87
-ADD A B
-SUB F 1
-JNZ F -2
-RIGHT
-LOAD B
-SUB B 3
-SET C 91
-SUB A B
-SUB C 1
-JNZ C -2
-OUT A
-SET A -37841
-LOAD B
-ADD B 10
-SET C 86
-ADD A B
-SUB C 1
-JNZ C -2
-LEFT
-LOAD B
-ADD B 49
-SET E 99
-ADD A B
-SUB E 1
-JNZ E -2
-LEFT
-LOAD F
-SUB F 3
-SET D 80
-ADD A F
-SUB D 1
-JNZ D -2
-LEFT
-LOAD F
-SUB F 21
-SET B 78
-SUB A F
-SUB B 1
-JNZ B -2
-LEFT
-LOAD D
-ADD D 43
-SET F 91
-ADD A D
-SUB F 1
-JNZ F -2
-LEFT
-LOAD E
-SUB E 32
-SET B 93
-SUB A E
-SUB B 1
-JNZ B -2
-OUT A
-SET A -12370
-LOAD E
-SUB E 6
-SET F 28
-SUB A E
-SUB F 1
-JNZ F -2
-RIGHT
-LOAD D
-SUB D 28
-SET C 88
-ADD A D
-SUB C 1
-JNZ C -2
-RIGHT
-LOAD F
-SUB F 76
-SET B 72
-SUB A F
-SUB B 1
-JNZ B -2
-RIGHT
-LOAD E
-SUB E 27
-SET F 94
-ADD A E
-SUB F 1
-JNZ F -2
-RIGHT
-LOAD B
-ADD B 21
-SET D 36
-SUB A B
-SUB D 1
-JNZ D -2
-RIGHT
-LOAD C
-SUB C 43
-SET B 91
-ADD A C
-SUB B 1
-JNZ B -2
-OUT A
-SET A 6408
-LOAD C
-SUB C 13
-SET B 60
-SUB A C
-SUB B 1
-JNZ B -2
-LEFT
-LOAD F
-SUB F 26
-SET B 96
-SUB A F
-SUB B 1
-JNZ B -2
-LEFT
-LOAD E
-ADD E 36
-SET B 92
-ADD A E
-SUB B 1
-JNZ B -2
-LEFT
-LOAD E
-SUB E 70
-SET D 52
-ADD A E
-SUB D 1
-JNZ D -2
-LEFT
-LOAD E
-ADD E 49
-SET F 83
-SUB A E
-SUB F 1
-JNZ F -2
-LEFT
-LOAD E
-SUB E 25
-SET F 20
-ADD A E
-SUB F 1
-JNZ F -2
-OUT A
-SET A 23230
-LOAD F
-SUB F 92
-SET E 87
-ADD A F
-SUB E 1
-JNZ E -2
-RIGHT
-LOAD C
-ADD C 9
-SET B 29
-ADD A C
-SUB B 1
-JNZ B -2
-RIGHT
-LOAD D
-ADD D 39
-SET F 27
-SUB A D
-SUB F 1
-JNZ F -2
-RIGHT
-LOAD B
-ADD B 89
-SET F 26
-SUB A B
-SUB F 1
-JNZ F -2
-RIGHT
-LOAD E
-SUB E 5
-SET D 64
-SUB A E
-SUB D 1
-JNZ D -2
-RIGHT
-LOAD F
-ADD F 20
-SET D 59
-SUB A F
-SUB D 1
-JNZ D -2
-OUT A
-SET A 6527
-LOAD D
-ADD D 52
-SET B 99
-SUB A D
-SUB B 1
-JNZ B -2
-LEFT
-LOAD B
-ADD B 53
-SET E 53
-SUB A B
-SUB E 1
-JNZ E -2
-LEFT
-LOAD C
-ADD C 39
-SET D 72
-ADD A C
-SUB D 1
-JNZ D -2
-LEFT
-LOAD D
-SUB D 86
-SET E 99
-ADD A D
-SUB E 1
-JNZ E -2
-LEFT
-LOAD E
-SUB E 57
-SET D 88
-SUB A E
-SUB D 1
-JNZ D -2
-LEFT
-LOAD B
-SUB B 51
-SET C 99
-SUB A B
-SUB C 1
-JNZ C -2
-OUT A
+TyMvSjKlVt
+
+QwOr 14> IdTgGiOr
+YuLeCn 11> XfAmBm
+FdMf 5> JaPuSlMf
+KeXr 1> KeGy
+GsLlHv 7> YoThKr
+FhQgRy 1> LsRy
+Ga 1> Yd
+MaBoDsSw 6> StCh
+Sg 1> Zu
+KmGlVeGp 5> TpGp
+Tf 11> NbYq
+AfXcYxNz 6> QvNz
+JyGp 6> YeGp
+TsAnVb 16> DeVnKz
+SxSp 4> ZeRcHuRi
+WyKq 8> DbCw
+Kl 3> QaTcEgNz
+UgDaGp 3> TkGp
+Yf 11> TsAn
+RoXvKoPr 6> FnMsKgAr
+NoOvKiEs 8> VzWa
+EvVw 6> Gn
+Wl 7>
+DfPj 14> Yf
+OnKbWt 1> Yi
+Kr 3> Dd
+BbWa 10> DuWa
+CcQq 6> CcCj
+ZcWvLrWu 1> NoOvSbEs
+Rg 9> Yv
+CdJr 11> AdAx
+ZbVc 8> VdSp
+GsRl 9> GsGc
+DvRc 4> QnRc
+BiWd 8> PnPd
+HhAr 6> PaAx
+Zu 7> Af
+DeJt 1> Se
+GqGw 9> WbGw
+OzPm 7> MeYrRfPm
+Cs 1> Jk
+NbYqMh 5> JpMh
+TvFkBkGp 3> KmGlVeGp
+Bs 8> Zh
+Xz 6> TiSzIp
+JzZg 3> NeGp
+BuAx 1> Sj
+Ss 22> Tj
+Uf 7> Vs
+La 9> EvVw
+CyVo 1> BfSw
+JlFeWj 6> MaBoDs
+VsZnGp 5> JyGp
+Ne 3> NfNd
+Fo 13> Qx
+TjOl 6> HyOl
+XvNh 1> XvKo
+Ys 8> Wv
+KcZhPp 7> ZzHsBc
+HtJoWgKv 1> QwOr
+Hk 1> Jv
+Rj 9> Cs
+BfSw 7> JlXiWjSw
+Tp 7> Lw
+XiWj 4> IrWj
+ZzKsBc 3> UvZg
+NfGd 3> UfZn
+JpMh 10> MrAx
+MzWc 7> GsRlHvVo
+OvSb 1> OvHm
+Mv 5> VaGfQd
+SaKtBq 3> MzWc
+MeRf 12> Vy
+Uv 3> Xz
+JiRe 1> CdJr
+Gk 3>
+Dd 5> Ru
+Vj 1>
+PaAx 1> Mv
+EnKv 6> HtJoWgKv
+FvYdBe 1> QsVc
+GnBq 7> VrBq
+Vl 4> Dv
+DrGp 4> HlAx
+MgJkWa 1> TfMh
+HyOl 5> HyWo
+Ms 6> Op
+RkOs 12> HbPwOs
+XyGoAt 1> GqGw
+Yv 11>
+YiKv 11> HeRqUpKv
+Qr 1> Zx
+WbGw 9> ZcYsLrWu
+Fq 8>
+ThRu 6> ThEz
+Vi 9> Do
+Lh 6> Xv
+Im 7> Qg
+QvNz 5> TwKwXkHp
+Ty 9> JsIg
+OfZx 12> Wp
+Xt 6> RoLhYl
+ShZwRy 1> RzJqPm
+Vt 6> RwNxViBw
+XfAmBmCw 11> PlGz
+So 8>
+FnOpKg 6> Hh
+Du 7> FmFy
+KyKa 5> KcBsPp
+RwNxDo 1> Kn
+Po 5> Bk
+TiSzIp 6> Jz
+RaRi 8> RnHkRi
+VrBq 8> SaFqKtBq
+QnRcHuRi 1> SvToGxRi
+JaSlMf 5> LaBq
+LsRy 6> ShZwRy
+OvHm 11> OvKi
+Yr 22>
+QmGfQd 8> FdMf
+Lm 7> Rj
+GsMn 6> GsLl
+Pq 4> Pe
+RpQj 4> Dr
+YeGp 3> TvFkPoGp
+Kn 16> Si
+SiBw 8> CpByXrBw
+Ze 1> Vl
+Ir 3> Fe
+QuPdCh 9> XtPr
+NqNz 1> SsOlEfNz
+JsIg 16> JeYm
+Qc 8> Gk
+ZlOr 9> DfPjVb
+LwGp 6> UgQcDaGp
+DpHd 8> Sx
+CcCj 5> CcHn
+PlGz 7> XyRgGoAt
+HcKv 18> OnKbWtKv
+Hs 7> Ks
+Qs 8> ZdFrSu
+YoThEz 29> Dq
+Vz 5> Bb
+RzCf 11> Oz
+TcEg 7> TcQt
+ZvLq 6> ZvZp
+Pu 1>
+Tk 8> RpWlQj
+ZdFrSu 7> Zb
+HyWoEf 5> SgXcYx
+CpKeGyBw 6> WyKq
+AdAx 1> Ty
+By 7> Ke
+RnJvRi 4> FhImRy
+Pe 7> Dt
+CkCcHn 1> Ky
+Sj 1> FvTqBe
+Xw 11> Yk
+Vu 5> Ns
+VdSp 1> DpSoHdSp
+HlAx 1> Kl
+HeRqUp 13> En
+Qf 6> Zv
+SvToGx 9> Ra
+XvYl 6> XvNh
+Rt 1> Xw
+Va 5> Qm
+QxHz 16> QxQl
+Jq 5> Cf
+ZaQxQlYg 1> HcKv
+Dt 5> Bi
+DqVo 4> VuVo
+DbCw 8> YuLeCnCw
+NaYkFz 1> OfQrMt
+TwKwXkHp 4> CkCcQqKa
+WpMt 8> LjWrOs
+QaTcQt 1> Nq
+FmFy 5> MgLm
+Nd 5> Gd
+Pn 1> Qu
+LjWrOs 9> RkOs
+Tg 1> Vj
+GtXq 5> BuAx
+Ns 3> VxQfLq
+Tq 1> Ga
+VxZvZpVo 1> CyVo
+VyPm 4> NaCzFz
+MrAx 1> Vt
+JeYm 9> ZaFoHzYg
+Vn 14> Jt
+Gc 1> Mn
+HbPwOs 12> GtXq
+SeKz 1> JiRe
+Cz 4> Rt
+St 8> PqWd
+IdGiOr 14> ZlOr

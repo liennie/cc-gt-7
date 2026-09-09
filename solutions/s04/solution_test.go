@@ -2,354 +2,304 @@ package s04
 
 import (
 	"fmt"
-	"math/rand/v2"
-	"strconv"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// TestMultiplyLoop covers the SET-body-SUB-JNZ pattern the generator emits
-// for every column: A = 0 + B * C = 0 + 7 * 5 = 35.
-func TestMultiplyLoop(t *testing.T) {
-	prog := parseProgram(`SET A 0
-SET B 7
-SET C 5
-ADD A B
-SUB C 1
-JNZ C -2
-OUT A`)
-	got := runVM(prog, nil)
-	if len(got) != 1 || got[0] != 35 {
-		t.Errorf("got %v, want [35]", got)
-	}
-}
+func TestSolutionDocExample(t *testing.T) {
+	// Puzzle-text example: 2 groups with smolder 2 and 3.
+	// Group 1: Ap → SmMn (2 ticks) → SmAx (1) → Ap (1). Cycle 4.
+	// Group 2: Vn → HzLc (3 ticks) → HzAx (1) → Vn (1). Cycle 5.
+	// First Ax at tick 3, position 2 → Part 1 = 6.
+	// LCM(4,5) = 20 → Part 2 = 19.
+	input := `ApVn
 
-// SAVE and LOAD at negative cursor positions round-trip.
-func TestSaveLoadNegativeCursor(t *testing.T) {
-	prog := parseProgram(`SAVE 7
-LEFT
-SAVE -3
-RIGHT
-LOAD A
-LEFT
-LOAD B
-OUT A
-OUT B`)
-	got := runVM(prog, nil)
-	if len(got) != 2 || got[0] != 7 || got[1] != -3 {
-		t.Errorf("got %v, want [7 -3]", got)
-	}
-}
-
-// JMP with positive offset skips the SET, jumps from pc=1 to pc=3.
-func TestJMPForward(t *testing.T) {
-	prog := parseProgram(`SET A 1
-JMP 2
-SET A 999
-OUT A`)
-	got := runVM(prog, nil)
-	if len(got) != 1 || got[0] != 1 {
-		t.Errorf("got %v, want [1]", got)
-	}
-}
-
-// JNZ falls through when the register is zero.
-func TestJNZNotTaken(t *testing.T) {
-	prog := parseProgram(`SET A 0
-JNZ A 3
-SET A 42
-OUT A`)
-	got := runVM(prog, nil)
-	if len(got) != 1 || got[0] != 42 {
-		t.Errorf("got %v, want [42]", got)
-	}
-}
-
-// Initial memory patches are visible to LOAD before the program runs.
-func TestPatchesMerged(t *testing.T) {
-	prog := parseProgram(`LOAD A
-RIGHT
-LOAD B
-OUT A
-OUT B`)
-	got := runVM(prog, map[int64]int64{0: 11, 1: 22})
-	if len(got) != 2 || got[0] != 11 || got[1] != 22 {
-		t.Errorf("got %v, want [11 22]", got)
-	}
-}
-
-// End-to-end 2-var / 2-eqn linear system, matching the worked example in
-// puzzles/04/part1.md + part2.md.
-//
-// V0 = 1 + 2*m_0 + m_1;  V1 = -1 + m_0 + m_1
-// Part 1 (mem = 0):  outputs [1, -1],  digest = 1 + (-1)*10 = -9
-// Part 2 (mem = [-2, 3]):  outputs [0, 0],  digest = -2 + 3*10 = 28
-func TestSolutionTwoVar(t *testing.T) {
-	input := `SET A 1
-LOAD B
-SET C 2
-ADD A B
-SUB C 1
-JNZ C -2
-RIGHT
-LOAD B
-ADD A B
-OUT A
-SET A -1
-LOAD B
-ADD A B
-LEFT
-LOAD B
-ADD A B
-OUT A
+Ap 2> SmMn
+SmMn 1> SmAx
+SmAx 1> Ap
+Vn 3> HzLc
+HzLc 1> HzAx
+HzAx 1> Vn
 `
 	got := Solution([]byte(input))
-	if len(got) != 2 || got[0] != "-9" || got[1] != "28" {
-		t.Errorf("got %v, want [-9 28]", got)
+	if len(got) != 2 {
+		t.Fatalf("want 2 answers, got %d", len(got))
+	}
+	if got[0] != "6" {
+		t.Errorf("part1: got %q, want %q", got[0], "6")
+	}
+	if got[1] != "19" {
+		t.Errorf("part2: got %q, want %q", got[1], "19")
 	}
 }
 
-// emitProgramS04 emits an assembly program shaped exactly like the ones
-// g04.Generate produces: n equation blocks each of the form
-//
-//	SET A b_i
-//	<for j in sweep order>:
-//	  LOAD B; ADD/SUB B offset; SET C |A[i][j]|; ADD/SUB A B; SUB C 1; JNZ C -2
-//	  RIGHT|LEFT (skipped after last column)
-//	OUT A
-//
-// out_reg = A, var_reg = B, ctr_reg = C. Sweep direction alternates so
-// no explicit cursor reset is needed between blocks (even i sweeps LTR,
-// odd i sweeps RTL).
-func emitProgramS04(A, offset [][]int64, b []int64) string {
-	n := len(A)
-	var sb strings.Builder
-	for i := 0; i < n; i++ {
-		fmt.Fprintf(&sb, "SET A %d\n", b[i])
-		ltr := i%2 == 0
-		for step := 0; step < n; step++ {
-			var j int
-			if ltr {
-				j = step
-			} else {
-				j = n - 1 - step
-			}
-			sb.WriteString("LOAD B\n")
-			if offset[i][j] > 0 {
-				fmt.Fprintf(&sb, "ADD B %d\n", offset[i][j])
-			} else if offset[i][j] < 0 {
-				fmt.Fprintf(&sb, "SUB B %d\n", -offset[i][j])
-			}
-			a := A[i][j]
-			absA := a
-			if absA < 0 {
-				absA = -absA
-			}
-			fmt.Fprintf(&sb, "SET C %d\n", absA)
-			if a >= 0 {
-				sb.WriteString("ADD A B\n")
-			} else {
-				sb.WriteString("SUB A B\n")
-			}
-			sb.WriteString("SUB C 1\n")
-			sb.WriteString("JNZ C -2\n")
-			if step < n-1 {
-				if ltr {
-					sb.WriteString("RIGHT\n")
-				} else {
-					sb.WriteString("LEFT\n")
-				}
-			}
-		}
-		sb.WriteString("OUT A\n")
+func TestSolutionSmolderOne(t *testing.T) {
+	// Single-group case, all smolders = 1. Chain:
+	// Fs=Ap → Sm Mn → Sm Ax → Ap. Cycle 3. First Ax at tick 2, position 2.
+	// Part 1 = 4. Only 1 group, so Part 2 = LCM(3) - 1 = 2.
+	input := `Ap
+
+Ap 1> SmMn
+SmMn 1> SmAx
+SmAx 1> Ap
+`
+	got := Solution([]byte(input))
+	if got[0] != "4" {
+		t.Errorf("part1: got %q, want %q", got[0], "4")
 	}
-	return sb.String()
+	if got[1] != "2" {
+		t.Errorf("part2: got %q, want %q", got[1], "2")
+	}
 }
 
-// bruteforceSolveS04 enumerates every mem vector in [-M..M]^n and returns
-// the (unique) one that makes every OUT zero. Panics if none or multiple.
-func bruteforceSolveS04(prog []instr, n, M int) []int64 {
-	var found []int64
-	cand := make([]int64, n)
-	var walk func(i int)
-	walk = func(i int) {
-		if i == n {
-			patches := make(map[int64]int64, n)
-			for j, v := range cand {
-				patches[int64(j)] = v
+// TestBlendMatchesConcatenatedGroups asserts the generator's independent-
+// group invariant: simulating the full initial blend produces, at every
+// tick, exactly the concatenation of simulating each initial-blend token
+// on its own. If any rule ever crossed group boundaries this would fail.
+func TestBlendMatchesConcatenatedGroups(t *testing.T) {
+	const ticks = 3000
+	for i := 1; i <= 5; i++ {
+		i := i
+		t.Run(fmt.Sprintf("input%02d", i), func(t *testing.T) {
+			path := filepath.Join("..", "..", "puzzles", "04", "inputs", fmt.Sprintf("%02d.txt", i))
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
 			}
-			out := runVM(prog, patches)
-			if len(out) != n {
-				return
+			initial, rules := parseInputForTest(data)
+			if len(initial) == 0 {
+				t.Fatalf("empty initial blend")
 			}
-			for _, v := range out {
-				if v != 0 {
-					return
+
+			whole := newSim(append([]string(nil), initial...), rules)
+			parts := make([]*sim, len(initial))
+			for k, tok := range initial {
+				parts[k] = newSim([]string{tok}, rules)
+			}
+
+			concat := func() []string {
+				var out []string
+				for _, p := range parts {
+					out = append(out, p.blend...)
+				}
+				return out
+			}
+			check := func(tick int64) {
+				if !slices.Equal(whole.blend, concat()) {
+					t.Fatalf("tick %d: whole blend %v != concat of groups %v",
+						tick, whole.blend, concat())
 				}
 			}
-			if found != nil {
-				panic("bruteforceSolveS04: multiple solutions")
+
+			check(0)
+			whole.matchRules(0)
+			for _, p := range parts {
+				p.matchRules(0)
 			}
-			found = append([]int64(nil), cand...)
-			return
-		}
-		for v := -M; v <= M; v++ {
-			cand[i] = int64(v)
-			walk(i + 1)
-		}
+			for tick := int64(1); tick <= ticks; tick++ {
+				whole.applyCompletions(tick)
+				for _, p := range parts {
+					p.applyCompletions(tick)
+				}
+				check(tick)
+				whole.matchRules(tick)
+				for _, p := range parts {
+					p.matchRules(tick)
+				}
+			}
+		})
 	}
-	walk(0)
-	if found == nil {
-		panic("bruteforceSolveS04: no solution")
-	}
-	return found
 }
 
-// TestSolutionAgainstBruteforce generates small random 2- and 3-variable
-// programs that share the exact emission shape of g04.Generate and
-// verifies Solution's recovered x* by brute-force enumeration over a
-// bounded mem-value cube.
-func TestSolutionAgainstBruteforce(t *testing.T) {
-	r := rand.New(rand.NewPCG(0x504, 0x504))
-	for trial := 0; trial < 20; trial++ {
-		n := 2 + trial%2 // 2 or 3
-		const bound = 3
-		var A, offset [][]int64
-		var xstar []int64
-		for {
-			xstar = make([]int64, n)
-			for j := 0; j < n; j++ {
-				v := 1 + r.IntN(bound)
-				if r.IntN(2) == 0 {
-					v = -v
-				}
-				xstar[j] = int64(v)
-			}
-			A = make([][]int64, n)
-			for i := 0; i < n; i++ {
-				A[i] = make([]int64, n)
-				for j := 0; j < n; j++ {
-					v := 1 + r.IntN(bound)
-					if r.IntN(2) == 0 {
-						v = -v
-					}
-					A[i][j] = int64(v)
-				}
-			}
-			offset = make([][]int64, n)
-			for i := 0; i < n; i++ {
-				offset[i] = make([]int64, n)
-				for j := 0; j < n; j++ {
-					offset[i][j] = int64(r.IntN(2*bound+1) - bound)
-				}
-			}
-			// require invertibility and nonzero baseline outputs.
-			if n == 2 && det2(A) == 0 {
-				continue
-			}
-			if n == 3 && det3(A) == 0 {
-				continue
-			}
-			bad := false
-			for i := 0; i < n; i++ {
-				var s int64
-				for j := 0; j < n; j++ {
-					s += A[i][j] * xstar[j]
-				}
-				if s == 0 {
-					bad = true
-					break
-				}
-			}
-			if !bad {
-				break
+// naivePart2 simulates the blend tick by tick until at least half of the
+// compounds are Ax. Bounded by maxTicks — returns -1 if never reached.
+// Purely for testing against the closed-form LCM-based Solution on tiny
+// setups whose cycle LCM is small enough to enumerate.
+func naivePart2(initial []string, rules []Rule, maxTicks int64) int64 {
+	half := func(blend []string) bool {
+		n := 0
+		for _, t := range blend {
+			if t == "Ax" {
+				n++
 			}
 		}
-		b := make([]int64, n)
-		for i := 0; i < n; i++ {
-			var s int64
-			for j := 0; j < n; j++ {
-				s += A[i][j] * (xstar[j] + offset[i][j])
-			}
-			b[i] = -s
+		return n*2 >= len(blend)
+	}
+	s := newSim(append([]string(nil), initial...), rules)
+	if half(s.blend) {
+		return 0
+	}
+	s.matchRules(0)
+	for tick := int64(1); tick <= maxTicks; tick++ {
+		s.applyCompletions(tick)
+		if half(s.blend) {
+			return tick
 		}
-		src := emitProgramS04(A, offset, b)
-		got := Solution([]byte(src))
+		s.matchRules(tick)
+	}
+	return -1
+}
 
-		// Expected digest of Part 2 is Σ xstar_j * 10^j.
-		var wantP2 int64
-		w := int64(1)
-		for _, v := range xstar {
-			wantP2 += v * w
-			w *= 10
+// naivePart1 simulates the blend tick by tick until any Ax appears.
+func naivePart1(initial []string, rules []Rule, maxTicks int64) int64 {
+	s := newSim(append([]string(nil), initial...), rules)
+	if p := findAx(s.blend); p >= 0 {
+		return 0
+	}
+	s.matchRules(0)
+	for tick := int64(1); tick <= maxTicks; tick++ {
+		s.applyCompletions(tick)
+		if p := findAx(s.blend); p >= 0 {
+			return tick * int64(p+1)
 		}
-		if got[1] != strconv.FormatInt(wantP2, 10) {
-			t.Errorf("trial %d n=%d: part2 got %s want %d (x*=%v)",
-				trial, n, got[1], wantP2, xstar)
+		s.matchRules(tick)
+	}
+	return -1
+}
+
+// TestSolutionAgainstNaiveSimulation builds small multi-group rule sets
+// with tiny cycle lengths and confirms Solution's LCM-based Part 2 (and
+// its Part 1) matches straight tick-by-tick simulation.
+func TestSolutionAgainstNaiveSimulation(t *testing.T) {
+	// Each entry: (initial blend, per-group rule cycles). Every group
+	// takes exactly its cycle length in ticks to return to Fs. Fs is a
+	// distinct starting token; the intermediate tokens are unique per
+	// group so the groups are independent.
+	tests := []struct {
+		name    string
+		initial string
+		rules   string
+	}{
+		{
+			name:    "cycle 3 and 5",
+			initial: "ApVn",
+			rules: `Ap 1> SmMn
+SmMn 1> SmAx
+SmAx 1> Ap
+Vn 3> HzLc
+HzLc 1> HzAx
+HzAx 1> Vn`,
+		},
+		{
+			name:    "cycles 4 and 5 (doc example)",
+			initial: "ApVn",
+			rules: `Ap 2> SmMn
+SmMn 1> SmAx
+SmAx 1> Ap
+Vn 3> HzLc
+HzLc 1> HzAx
+HzAx 1> Vn`,
+		},
+		{
+			name:    "cycles 3 5 and 7",
+			initial: "ApVnBt",
+			rules: `Ap 1> SmMn
+SmMn 1> SmAx
+SmAx 1> Ap
+Vn 3> HzLc
+HzLc 1> HzAx
+HzAx 1> Vn
+Bt 5> CdEf
+CdEf 1> CdAx
+CdAx 1> Bt`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			input := tc.initial + "\n\n" + tc.rules + "\n"
+			got := Solution([]byte(input))
+			initial, rules := parseInputForTest([]byte(input))
+			want1 := naivePart1(initial, rules, 10_000)
+			want2 := naivePart2(initial, rules, 10_000)
+			if want1 < 0 || want2 < 0 {
+				t.Fatalf("naive simulation didn't converge: p1=%d p2=%d", want1, want2)
+			}
+			if got[0] != fmt.Sprint(want1) {
+				t.Errorf("part1: got %s, naive %d", got[0], want1)
+			}
+			if got[1] != fmt.Sprint(want2) {
+				t.Errorf("part2: got %s, naive %d", got[1], want2)
+			}
+		})
+	}
+}
+
+func parseInputForTest(input []byte) ([]string, []Rule) {
+	var initial []string
+	var rules []Rule
+	seenBlend := false
+	for _, raw := range strings.Split(string(input), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
 			continue
 		}
-
-		// Independently verify via brute enumeration.
-		prog := parseProgram(src)
-		brute := bruteforceSolveS04(prog, n, bound)
-		for j, v := range brute {
-			if v != xstar[j] {
-				t.Errorf("trial %d n=%d: brute x*[%d]=%d, wanted %d",
-					trial, n, j, v, xstar[j])
-			}
+		if !seenBlend {
+			initial = parseCompounds(line)
+			seenBlend = true
+			continue
+		}
+		if r, ok := parseRule(line); ok {
+			rules = append(rules, r)
 		}
 	}
+	return initial, rules
 }
 
-func det2(A [][]int64) int64 {
-	if len(A) != 2 {
-		return 0
+func TestSolutionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		want1, want2 string
+	}{
+		{
+			name: "cycle 2 single group",
+			// [Fs] -> [Ax] -> [Fs]. Cycle 2. Ax at pos1=1 on tick 1.
+			input: "Fs\n\nFs 1> Ax\nAx 1> Fs\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "size-change with empty-RHS decay",
+			// [Fs] -> [Ax, Tm] -> [Fs]. Decay Tm 1> and Ax 1> Fs fire in
+			// parallel at tick 1; applyCompletions R->L handles both.
+			input: "Fs\n\nFs 1> AxTm\nAx 1> Fs\nTm 1>\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "size expansion 1->3",
+			// [Fs] -> [Ax, Bp, Cp] -> [Fs]. Multi-token LHS on the return leg.
+			input: "Fs\n\nFs 1> AxBpCp\nAxBpCp 1> Fs\n",
+			want1: "1",
+			want2: "1",
+		},
+		{
+			name: "multi-group tick-0 fires, Ax at pos 2",
+			// Two groups, cycles 3 and 2. At tick 0 both starters fire in
+			// parallel; group 2's smolder-1 delivers its Ax at tick 1 to
+			// position 2 (0-indexed 1) of the whole blend [Fs, Ax, Is].
+			// Part 1 = tick * pos1 = 1 * 2 = 2. Part 2 = LCM(3,2) - 1 = 5.
+			input: "FsGs\n\nFs 2> AxHs\nAxHs 1> Fs\nGs 1> AxIs\nAxIs 1> Gs\n",
+			want1: "2",
+			want2: "5",
+		},
 	}
-	return A[0][0]*A[1][1] - A[0][1]*A[1][0]
-}
-
-func det3(A [][]int64) int64 {
-	if len(A) != 3 {
-		return 0
-	}
-	return A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1]) -
-		A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0]) +
-		A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0])
-}
-
-// n=1: V0 = 5 + m[0]. Part 1 digest = 5. x* = -5, Part 2 digest = -5.
-func TestSolutionOneVar(t *testing.T) {
-	input := `LOAD B
-SET A 5
-ADD A B
-OUT A
-`
-	got := Solution([]byte(input))
-	if len(got) != 2 || got[0] != "5" || got[1] != "-5" {
-		t.Errorf("got %v, want [5 -5]", got)
-	}
-}
-
-// Both outputs baseline negative -> Part 1 digest negative. Verifies
-// weightedSum handles negative b_i * 10^i terms via checked mul.
-//
-// V0 = -5 + m[0];  V1 = -3 - m[1]
-// Part 1 (mem = 0):  outputs [-5, -3],  digest = -5 + (-3)*10 = -35
-// Part 2 (x* = [5, -3]):  outputs [0, 0],  digest = 5 + (-3)*10 = -25
-func TestSolutionNegativeDigest(t *testing.T) {
-	input := `LOAD B
-SET A -5
-ADD A B
-OUT A
-RIGHT
-LOAD B
-SET A -3
-SUB A B
-OUT A
-`
-	got := Solution([]byte(input))
-	if len(got) != 2 || got[0] != "-35" || got[1] != "-25" {
-		t.Errorf("got %v, want [-35 -25]", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Solution([]byte(tc.input))
+			if len(got) != 2 {
+				t.Fatalf("expected 2 answers, got %d", len(got))
+			}
+			if got[0] != tc.want1 {
+				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
+			}
+			if got[1] != tc.want2 {
+				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
+			}
+		})
 	}
 }
 
@@ -363,5 +313,5 @@ func TestSolutionRejectsCR(t *testing.T) {
 			t.Errorf("panic message: %v", r)
 		}
 	}()
-	Solution([]byte("SET A 1\r\nOUT A\r\n"))
+	Solution([]byte("Fs\r\n\r\nFs 1> Ax\r\n"))
 }

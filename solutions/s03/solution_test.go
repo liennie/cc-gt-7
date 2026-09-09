@@ -2,193 +2,354 @@ package s03
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-func TestSolution(t *testing.T) {
-	tests := []struct {
-		name         string
-		input        string
-		want1, want2 string
-	}{
-		{
-			name: "tiny open",
-			// 3x3 open grid, S at (0,0), E at (2,2).
-			// Part 1: shortest 4-way walk = 4.
-			// Part 2: one blast jump with dr=2, dc=2 (Manhattan 4, cost 4,
-			// consumes 1 bomb) — same 4 steps. Alternatively 2 walk + 1
-			// diagonal blast (dr=1,dc=1 Manhattan 2 cost 2, plus 2 walk = 4);
-			// or two blasts each dr=1,dc=1 (2 bombs, 2+2=4). All give 4.
-			// The blast (dr=2,dc=2) from (0,0) → (2,2) has Manhattan 4 = cost 4
-			// but is a single move and reaches E in 4 total.
-			// So Part 2 = 4.
-			input: "S..\n...\n..E\n",
-			want1: "4",
-			want2: "4",
-		},
-		{
-			name: "corridor with double wall",
-			// 5x5. S at (0,0). E at (4,4). Two walls at row 2 block the
-			// corridor; blasting one bomb at (2,2) clears both walls at once
-			// (i.e. jump from (1,2) to (3,2) with Manhattan 2, cost 2,
-			// consumes 1 bomb).
-			// Layout:
-			//   S...
-			//   ....
-			//   .##.  (two walls at row 2 cols 1..2)
-			//   ....
-			//   ...E
-			// Part 1: must go around the walls. Shortest walk = 8 (5 rows -1
-			// then 5 cols -1 = 8 in an open 5x5). Since walls only affect
-			// cols 1-2 at row 2, an open detour still exists.
-			// Verified walk length = 8.
-			// Part 2: jump from (1,1) with dr=2,dc=1 to (3,2) Manhattan 3,
-			// or S (0,0) -> (3,3) diagonal Manhattan 6. Cheaper: walk to
-			// (1,1), blast to (3,3) Manhattan 4 = 1 + 4 = 5, then walk 2 to
-			// (4,4)? No E is (4,4).
-			// Optimal blast from (0,0) -> (3,3) Manhattan 6 cost 6, then walk
-			// 2 to E: total 8. No gain. Try blast (0,0) -> (2,2) Manhattan 4
-			// cost 4, then walk (2,2)->(4,4)=4 total 8. Two blasts: (0,0)
-			// -> (2,2) Manhattan 4 + (2,2) -> (4,4) Manhattan 4 = 8.
-			// So Part 2 = 8 (same as Part 1) for this trivial example.
-			input: "S....\n.....\n.##..\n.....\n....E\n",
-			want1: "8",
-			want2: "8",
-		},
-		{
-			name: "zigzag corridor",
-			// 7x7 zig-zag matching the Part 1 example. Row 0 is open, then
-			// three wall bands at rows 1, 3, 5 each cover 6 of the 7 columns
-			// but leave a single-cell notch at alternating ends so a walker
-			// can snake between them:
-			//   S......
-			//   ######.  (notch at col 6)
-			//   .......
-			//   .######  (notch at col 0)
-			//   .......
-			//   ######.  (notch at col 6)
-			//   ......E
-			// Part 1: the shortest walk must traverse all three open rows in
-			// full plus the six vertical joins = 6+1+1+6+1+1+6+1+1 = 24.
-			// Part 2: Manhattan(S,E) = 12, and a monotone right/down bomb
-			// chain achieves it, e.g. bomb (0,0)->(3,0) cost 3, walk
-			// (3,0)->(4,0) 1, walk (4,0)->(4,6) 6, bomb (4,6)->(6,6) cost 2.
-			// Uses 2 bombs, total 12.
-			input: "S......\n######.\n.......\n.######\n.......\n######.\n......E\n",
-			want1: "24",
-			want2: "12",
-		},
-		{
-			name: "detour with bomb shortcut",
-			// 5x5, S at (0,0), E at (4,0). Two wall bands at rows 1 and 3
-			// force the walker into a long C-shaped detour, but a single
-			// well-placed bomb cuts straight down the left edge:
-			//   S....
-			//   ####.
-			//   .....
-			//   .####
-			//   E....
-			// Part 1: right 4, down 2, left 4, down 2 = 12 (Manhattan is
-			// only 4, so the maze forces a big detour).
-			// Part 2: one bomb from (0,0) to (3,0) costs 3 (dr=3, dc=0,
-			// target is `.`), then walk (3,0)->(4,0) = 1. Total 4.
-			input: "S....\n####.\n.....\n.####\nE....\n",
-			want1: "12",
-			want2: "4",
-		},
-		{
-			name: "narrow bomb corridor",
-			// 3x3 with a wall band at row 1 covering the middle two cells.
-			// Walking is blocked; bombs are the only way through.
-			//   S..
-			//   ##.
-			//   E..
-			// Part 1: (0,0)->(0,2)=2, (0,2)->(1,2) dot, (1,2)->(2,2)=2,
-			// (2,2)->(2,0)=2 -> total 6.
-			// Part 2: single bomb (0,0)->(2,0), dr=2, dc=0, cost 2.
-			input: "S..\n##.\nE..\n",
-			want1: "6",
-			want2: "2",
-		},
-		{
-			name: "part2 example",
-			// 7x7 with outer walls, matches the puzzle example in
-			// puzzles/03/part2.md. Part 1: forced spiral of 16 steps.
-			// Part 2: bomb (1,1)->(4,1) (dr=3, dc=0, cost 3) plus 5 walk
-			// steps = 8, which equals Manhattan((1,1),(5,5)).
-			input: "#######\n#S....#\n#####.#\n#.....#\n#.#####\n#....E#\n#######\n",
-			want1: "16",
-			want2: "8",
-		},
-		{
-			name: "p1 unreachable, single dive",
-			// 2x3 with S trapped by walls; walking cannot reach E.
-			// Part 1: no walk exists -> -1.
-			// Part 2: single dive (0,0)->(0,2) at Manhattan 2 lands on E.
-			input: "S#E\n###\n",
-			want1: "-1",
-			want2: "2",
-		},
-		{
-			name: "p1 unreachable, walk then dive",
-			// 2x5; row 1 solid wall, wall at (0,3) blocks the walker.
-			// Part 1: walker stops at (0,2) -> -1.
-			// Part 2: walk 2 to (0,2), dive (0,2)->(0,4) at Manhattan 2 = 4.
-			input: "S..#E\n#####\n",
-			want1: "-1",
-			want2: "4",
-		},
-		{
-			name: "bigger example",
-			// 15x15 recursive-backtracker maze matching the puzzle example
-			// in puzzles/03/{part1,part2}.md. S at (1,0), E at (13,13),
-			// outer border. Part 1: shortest walk 45. Part 2: two bombs at
-			// (1,4) and (12,13) open row 1 and the approach to E for a
-			// 25-step straight walk.
-			input: `
-###############
-S...#.........#
-#.###.#######.#
-#.....#.....#.#
-#.#####.###.#.#
-#.#.....#...#.#
-###.#.###.#.#.#
-#...#...#.#...#
-#.#.###.#.###.#
-#.#.....#...#.#
-#.###.###.#.#.#
-#.#...#...#...#
-#.#.###.#######
-#............E#
-###############
-`,
-			want1: "45",
-			want2: "25",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := Solution([]byte(strings.TrimSpace(tc.input)))
-			if len(got) != 2 {
-				t.Fatalf("want 2 answers, got %d", len(got))
-			}
-			if got[0] != tc.want1 {
-				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
-			}
-			if got[1] != tc.want2 {
-				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
-			}
-		})
+// TestMultiplyLoop covers the SET-body-SUB-JNZ pattern the generator emits
+// for every column: A = 0 + B * C = 0 + 7 * 5 = 35.
+func TestMultiplyLoop(t *testing.T) {
+	prog := parseProgram(`SET A 0
+SET B 7
+SET C 5
+ADD A B
+SUB C 1
+JNZ C -2
+OUT A`)
+	got := runVM(prog, nil)
+	if len(got) != 1 || got[0] != 35 {
+		t.Errorf("got %v, want [35]", got)
 	}
 }
 
-func TestSolutionAdjacentSE(t *testing.T) {
-	// 1x2 grid, S and E on the same row. Walk takes one step; Part 2's
-	// dive graph doesn't beat that.
-	got := Solution([]byte("SE\n"))
-	if got[0] != "1" || got[1] != "1" {
-		t.Errorf("SE adjacent: got %v, want [1 1]", got)
+// SAVE and LOAD at negative cursor positions round-trip.
+func TestSaveLoadNegativeCursor(t *testing.T) {
+	prog := parseProgram(`SAVE 7
+LEFT
+SAVE -3
+RIGHT
+LOAD A
+LEFT
+LOAD B
+OUT A
+OUT B`)
+	got := runVM(prog, nil)
+	if len(got) != 2 || got[0] != 7 || got[1] != -3 {
+		t.Errorf("got %v, want [7 -3]", got)
+	}
+}
+
+// JMP with positive offset skips the SET, jumps from pc=1 to pc=3.
+func TestJMPForward(t *testing.T) {
+	prog := parseProgram(`SET A 1
+JMP 2
+SET A 999
+OUT A`)
+	got := runVM(prog, nil)
+	if len(got) != 1 || got[0] != 1 {
+		t.Errorf("got %v, want [1]", got)
+	}
+}
+
+// JNZ falls through when the register is zero.
+func TestJNZNotTaken(t *testing.T) {
+	prog := parseProgram(`SET A 0
+JNZ A 3
+SET A 42
+OUT A`)
+	got := runVM(prog, nil)
+	if len(got) != 1 || got[0] != 42 {
+		t.Errorf("got %v, want [42]", got)
+	}
+}
+
+// Initial memory patches are visible to LOAD before the program runs.
+func TestPatchesMerged(t *testing.T) {
+	prog := parseProgram(`LOAD A
+RIGHT
+LOAD B
+OUT A
+OUT B`)
+	got := runVM(prog, map[int64]int64{0: 11, 1: 22})
+	if len(got) != 2 || got[0] != 11 || got[1] != 22 {
+		t.Errorf("got %v, want [11 22]", got)
+	}
+}
+
+// End-to-end 2-var / 2-eqn linear system, matching the worked example in
+// puzzles/03/part1.md + part2.md.
+//
+// V0 = 1 + 2*m_0 + m_1;  V1 = -1 + m_0 + m_1
+// Part 1 (mem = 0):  outputs [1, -1],  digest = 1 + (-1)*10 = -9
+// Part 2 (mem = [-2, 3]):  outputs [0, 0],  digest = -2 + 3*10 = 28
+func TestSolutionTwoVar(t *testing.T) {
+	input := `SET A 1
+LOAD B
+SET C 2
+ADD A B
+SUB C 1
+JNZ C -2
+RIGHT
+LOAD B
+ADD A B
+OUT A
+SET A -1
+LOAD B
+ADD A B
+LEFT
+LOAD B
+ADD A B
+OUT A
+`
+	got := Solution([]byte(input))
+	if len(got) != 2 || got[0] != "-9" || got[1] != "28" {
+		t.Errorf("got %v, want [-9 28]", got)
+	}
+}
+
+// emitProgramS03 emits an assembly program shaped exactly like the ones
+// g03.Generate produces: n equation blocks each of the form
+//
+//	SET A b_i
+//	<for j in sweep order>:
+//	  LOAD B; ADD/SUB B offset; SET C |A[i][j]|; ADD/SUB A B; SUB C 1; JNZ C -2
+//	  RIGHT|LEFT (skipped after last column)
+//	OUT A
+//
+// out_reg = A, var_reg = B, ctr_reg = C. Sweep direction alternates so
+// no explicit cursor reset is needed between blocks (even i sweeps LTR,
+// odd i sweeps RTL).
+func emitProgramS03(A, offset [][]int64, b []int64) string {
+	n := len(A)
+	var sb strings.Builder
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&sb, "SET A %d\n", b[i])
+		ltr := i%2 == 0
+		for step := 0; step < n; step++ {
+			var j int
+			if ltr {
+				j = step
+			} else {
+				j = n - 1 - step
+			}
+			sb.WriteString("LOAD B\n")
+			if offset[i][j] > 0 {
+				fmt.Fprintf(&sb, "ADD B %d\n", offset[i][j])
+			} else if offset[i][j] < 0 {
+				fmt.Fprintf(&sb, "SUB B %d\n", -offset[i][j])
+			}
+			a := A[i][j]
+			absA := a
+			if absA < 0 {
+				absA = -absA
+			}
+			fmt.Fprintf(&sb, "SET C %d\n", absA)
+			if a >= 0 {
+				sb.WriteString("ADD A B\n")
+			} else {
+				sb.WriteString("SUB A B\n")
+			}
+			sb.WriteString("SUB C 1\n")
+			sb.WriteString("JNZ C -2\n")
+			if step < n-1 {
+				if ltr {
+					sb.WriteString("RIGHT\n")
+				} else {
+					sb.WriteString("LEFT\n")
+				}
+			}
+		}
+		sb.WriteString("OUT A\n")
+	}
+	return sb.String()
+}
+
+// bruteforceSolveS03 enumerates every mem vector in [-M..M]^n and returns
+// the (unique) one that makes every OUT zero. Panics if none or multiple.
+func bruteforceSolveS03(prog []instr, n, M int) []int64 {
+	var found []int64
+	cand := make([]int64, n)
+	var walk func(i int)
+	walk = func(i int) {
+		if i == n {
+			patches := make(map[int64]int64, n)
+			for j, v := range cand {
+				patches[int64(j)] = v
+			}
+			out := runVM(prog, patches)
+			if len(out) != n {
+				return
+			}
+			for _, v := range out {
+				if v != 0 {
+					return
+				}
+			}
+			if found != nil {
+				panic("bruteforceSolveS03: multiple solutions")
+			}
+			found = append([]int64(nil), cand...)
+			return
+		}
+		for v := -M; v <= M; v++ {
+			cand[i] = int64(v)
+			walk(i + 1)
+		}
+	}
+	walk(0)
+	if found == nil {
+		panic("bruteforceSolveS03: no solution")
+	}
+	return found
+}
+
+// TestSolutionAgainstBruteforce generates small random 2- and 3-variable
+// programs that share the exact emission shape of g03.Generate and
+// verifies Solution's recovered x* by brute-force enumeration over a
+// bounded mem-value cube.
+func TestSolutionAgainstBruteforce(t *testing.T) {
+	r := rand.New(rand.NewPCG(0x504, 0x504))
+	for trial := 0; trial < 20; trial++ {
+		n := 2 + trial%2 // 2 or 3
+		const bound = 3
+		var A, offset [][]int64
+		var xstar []int64
+		for {
+			xstar = make([]int64, n)
+			for j := 0; j < n; j++ {
+				v := 1 + r.IntN(bound)
+				if r.IntN(2) == 0 {
+					v = -v
+				}
+				xstar[j] = int64(v)
+			}
+			A = make([][]int64, n)
+			for i := 0; i < n; i++ {
+				A[i] = make([]int64, n)
+				for j := 0; j < n; j++ {
+					v := 1 + r.IntN(bound)
+					if r.IntN(2) == 0 {
+						v = -v
+					}
+					A[i][j] = int64(v)
+				}
+			}
+			offset = make([][]int64, n)
+			for i := 0; i < n; i++ {
+				offset[i] = make([]int64, n)
+				for j := 0; j < n; j++ {
+					offset[i][j] = int64(r.IntN(2*bound+1) - bound)
+				}
+			}
+			// require invertibility and nonzero baseline outputs.
+			if n == 2 && det2(A) == 0 {
+				continue
+			}
+			if n == 3 && det3(A) == 0 {
+				continue
+			}
+			bad := false
+			for i := 0; i < n; i++ {
+				var s int64
+				for j := 0; j < n; j++ {
+					s += A[i][j] * xstar[j]
+				}
+				if s == 0 {
+					bad = true
+					break
+				}
+			}
+			if !bad {
+				break
+			}
+		}
+		b := make([]int64, n)
+		for i := 0; i < n; i++ {
+			var s int64
+			for j := 0; j < n; j++ {
+				s += A[i][j] * (xstar[j] + offset[i][j])
+			}
+			b[i] = -s
+		}
+		src := emitProgramS03(A, offset, b)
+		got := Solution([]byte(src))
+
+		// Expected digest of Part 2 is Σ xstar_j * 10^j.
+		var wantP2 int64
+		w := int64(1)
+		for _, v := range xstar {
+			wantP2 += v * w
+			w *= 10
+		}
+		if got[1] != strconv.FormatInt(wantP2, 10) {
+			t.Errorf("trial %d n=%d: part2 got %s want %d (x*=%v)",
+				trial, n, got[1], wantP2, xstar)
+			continue
+		}
+
+		// Independently verify via brute enumeration.
+		prog := parseProgram(src)
+		brute := bruteforceSolveS03(prog, n, bound)
+		for j, v := range brute {
+			if v != xstar[j] {
+				t.Errorf("trial %d n=%d: brute x*[%d]=%d, wanted %d",
+					trial, n, j, v, xstar[j])
+			}
+		}
+	}
+}
+
+func det2(A [][]int64) int64 {
+	if len(A) != 2 {
+		return 0
+	}
+	return A[0][0]*A[1][1] - A[0][1]*A[1][0]
+}
+
+func det3(A [][]int64) int64 {
+	if len(A) != 3 {
+		return 0
+	}
+	return A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1]) -
+		A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0]) +
+		A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0])
+}
+
+// n=1: V0 = 5 + m[0]. Part 1 digest = 5. x* = -5, Part 2 digest = -5.
+func TestSolutionOneVar(t *testing.T) {
+	input := `LOAD B
+SET A 5
+ADD A B
+OUT A
+`
+	got := Solution([]byte(input))
+	if len(got) != 2 || got[0] != "5" || got[1] != "-5" {
+		t.Errorf("got %v, want [5 -5]", got)
+	}
+}
+
+// Both outputs baseline negative -> Part 1 digest negative. Verifies
+// weightedSum handles negative b_i * 10^i terms via checked mul.
+//
+// V0 = -5 + m[0];  V1 = -3 - m[1]
+// Part 1 (mem = 0):  outputs [-5, -3],  digest = -5 + (-3)*10 = -35
+// Part 2 (x* = [5, -3]):  outputs [0, 0],  digest = 5 + (-3)*10 = -25
+func TestSolutionNegativeDigest(t *testing.T) {
+	input := `LOAD B
+SET A -5
+ADD A B
+OUT A
+RIGHT
+LOAD B
+SET A -3
+SUB A B
+OUT A
+`
+	got := Solution([]byte(input))
+	if len(got) != 2 || got[0] != "-35" || got[1] != "-25" {
+		t.Errorf("got %v, want [-35 -25]", got)
 	}
 }
 
@@ -202,5 +363,5 @@ func TestSolutionRejectsCR(t *testing.T) {
 			t.Errorf("panic message: %v", r)
 		}
 	}()
-	Solution([]byte("S..\r\n...\r\n..E\r\n"))
+	Solution([]byte("SET A 1\r\nOUT A\r\n"))
 }

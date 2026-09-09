@@ -3,119 +3,270 @@ package s03
 
 import (
 	"bytes"
+	"math/big"
 	"strconv"
 	"strings"
-
-	"github.com/liennie/AdventOfCode/pkg/path"
-	"github.com/liennie/AdventOfCode/pkg/space"
 )
 
-const maxBombs = 3
+// The GT-Nano assembly VM: 10 opcodes, six signed-integer registers A..F, a
+// 1-D signed-integer memory tape, a signed-integer cursor. Jumps take signed
+// non-zero offsets applied to the pc of the jump instruction itself.
+//
+// The program encodes a linear function of mem[0..n-1] for some small n. Both
+// parts treat the program as a black box. Part 1 runs it with mem = 0 and
+// reports a positional base-10 weighted sum of the outputs. Part 2 recovers
+// the underlying matrix A and constant vector b by probing with mem = 0 and
+// each unit vector, solves A*x = -b with big.Rat Gauss elimination, and
+// reports the same base-10 weighted sum of x.
 
-type state struct {
-	r, c, b int
+type operand struct {
+	isReg bool
+	reg   byte
+	imm   int64
 }
 
-func parseGrid(input []byte) (grid [][]byte, sr, sc, er, ec int) {
-	sr, sc, er, ec = -1, -1, -1, -1
-	for _, line := range strings.Split(string(input), "\n") {
+type instr struct {
+	op   string
+	args []operand
+}
+
+func parseOperand(s string) operand {
+	if len(s) == 1 && s[0] >= 'A' && s[0] <= 'F' {
+		return operand{isReg: true, reg: s[0]}
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		panic("s03: bad operand: " + s)
+	}
+	return operand{imm: n}
+}
+
+func parseProgram(src string) []instr {
+	var prog []instr
+	for _, raw := range strings.Split(src, "\n") {
+		if i := strings.IndexByte(raw, ';'); i >= 0 {
+			raw = raw[:i]
+		}
+		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
 		}
-		row := []byte(line)
-		for c, ch := range row {
-			switch ch {
-			case 'S':
-				sr, sc = len(grid), c
-			case 'E':
-				er, ec = len(grid), c
-			}
+		fields := strings.Fields(line)
+		op := strings.ToUpper(fields[0])
+		var args []operand
+		for _, f := range fields[1:] {
+			args = append(args, parseOperand(f))
 		}
-		grid = append(grid, row)
+		prog = append(prog, instr{op: op, args: args})
 	}
-	return
+	return prog
+}
+
+// runVM executes prog with the given initial memory patches merged into the
+// otherwise-zero tape. Returns the OUT stream.
+func runVM(prog []instr, patches map[int64]int64) []int64 {
+	var regs [6]int64
+	value := func(o operand) int64 {
+		if o.isReg {
+			return regs[o.reg-'A']
+		}
+		return o.imm
+	}
+
+	mem := make(map[int64]int64, len(patches))
+	for k, v := range patches {
+		mem[k] = v
+	}
+	var x int64
+	var out []int64
+	pc := 0
+	for pc < len(prog) {
+		here := pc
+		ins := prog[pc]
+		pc++
+		switch ins.op {
+		case "LEFT":
+			x--
+		case "RIGHT":
+			x++
+		case "LOAD":
+			regs[ins.args[0].reg-'A'] = mem[x]
+		case "SAVE":
+			mem[x] = value(ins.args[0])
+		case "SET":
+			regs[ins.args[0].reg-'A'] = value(ins.args[1])
+		case "ADD":
+			ri := ins.args[0].reg - 'A'
+			regs[ri] = addChecked(regs[ri], value(ins.args[1]))
+		case "SUB":
+			ri := ins.args[0].reg - 'A'
+			regs[ri] = subChecked(regs[ri], value(ins.args[1]))
+		case "JMP":
+			off := value(ins.args[0])
+			if off == 0 {
+				panic("s03: JMP with zero offset")
+			}
+			pc = here + int(off)
+		case "JNZ":
+			if regs[ins.args[0].reg-'A'] != 0 {
+				off := value(ins.args[1])
+				if off == 0 {
+					panic("s03: JNZ with zero offset")
+				}
+				pc = here + int(off)
+			}
+		case "OUT":
+			out = append(out, value(ins.args[0]))
+		default:
+			panic("s03: unknown opcode: " + ins.op)
+		}
+	}
+	return out
+}
+
+// weightedSum returns Σ v[i] * 10^i. Panics on int64 overflow so a
+// runaway coefficient explodes at the digest step instead of silently
+// wrapping in the reported answer.
+func weightedSum(v []int64) int64 {
+	var sum, w int64 = 0, 1
+	for i, x := range v {
+		term := mulChecked(x, w)
+		sum = addChecked(sum, term)
+		if i < len(v)-1 {
+			w = mulChecked(w, 10)
+		}
+	}
+	return sum
+}
+
+func addChecked(a, b int64) int64 {
+	s := a + b
+	if (a > 0 && b > 0 && s < 0) || (a < 0 && b < 0 && s >= 0) {
+		panic("s03: int64 overflow in ADD")
+	}
+	return s
+}
+
+func subChecked(a, b int64) int64 {
+	s := a - b
+	if (b > 0 && s > a) || (b < 0 && s < a) {
+		panic("s03: int64 overflow in SUB")
+	}
+	return s
+}
+
+func mulChecked(a, b int64) int64 {
+	if a == 0 || b == 0 {
+		return 0
+	}
+	p := a * b
+	if p/a != b {
+		panic("s03: int64 overflow in MUL")
+	}
+	return p
 }
 
 func Solution(input []byte) []string {
 	if bytes.IndexByte(input, '\r') >= 0 {
 		panic("s03: CR in input, expected LF-only")
 	}
-	grid, sr, sc, er, ec := parseGrid(input)
-	rows := len(grid)
-	cols := 0
-	if rows > 0 {
-		cols = len(grid[0])
-	}
-	inBounds := func(r, c int) bool { return r >= 0 && r < rows && c >= 0 && c < cols }
+	prog := parseProgram(string(input))
+	b := runVM(prog, nil)
+	n := len(b)
 
-	// Part 1: shortest 4-directional walk from S to E, walls block.
-	_, part1, err := path.Shortest(path.GraphFunc[space.Point](func(p space.Point) (e []path.Edge[space.Point]) {
-		for dir := range space.Orthogonal() {
-			np := p.Add(dir)
-			if inBounds(np.Y, np.X) && grid[np.Y][np.X] != '#' {
-				e = append(e, path.Edge[space.Point]{Len: 1, To: np})
-			}
+	// Recover A column-by-column via unit-vector probes: A[:,j] = probe(e_j) - b.
+	A := make([][]int64, n)
+	for i := range A {
+		A[i] = make([]int64, n)
+	}
+	for j := 0; j < n; j++ {
+		col := runVM(prog, map[int64]int64{int64(j): 1})
+		if len(col) != n {
+			panic("s03: probe changed output length")
 		}
-		return
-	}), space.Point{X: sc, Y: sr}, path.EndConst(space.Point{X: ec, Y: er}))
-	if err != nil {
-		part1 = -1
+		for i := 0; i < n; i++ {
+			A[i][j] = col[i] - b[i]
+		}
 	}
 
-	// Part 2: shortest path with up to 3 "pre-placed" bomb jumps.
-	// A jump from (r, c) can reach any (r', c') with |dr| <= 3, |dc| <= 3,
-	// (dr, dc) != (0, 0), and (dr, dc) not one of the four extreme corners
-	// (+-3, +-3). The destination must be in-bounds. Cost = |dr|+|dc| walk
-	// steps plus one bomb charge consumed.
-	graph := path.GraphFunc[state](func(s state) []path.Edge[state] {
-		var edges []path.Edge[state]
-		// Walk moves.
-		for _, d := range [4][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} {
-			nr, nc := s.r+d[0], s.c+d[1]
-			if !inBounds(nr, nc) || grid[nr][nc] == '#' {
-				continue
-			}
-			edges = append(edges, path.Edge[state]{Len: 1, To: state{nr, nc, s.b}})
-		}
-		// Blast/jump moves.
-		if s.b < maxBombs {
-			for dr := -3; dr <= 3; dr++ {
-				for dc := -3; dc <= 3; dc++ {
-					if dr == 0 && dc == 0 {
-						continue
-					}
-					// Exclude the four extreme corners (+-3, +-3).
-					if (dr == 3 || dr == -3) && (dc == 3 || dc == -3) {
-						continue
-					}
-					nr, nc := s.r+dr, s.c+dc
-					if !inBounds(nr, nc) {
-						continue
-					}
-					manhattan := abs(dr) + abs(dc)
-					edges = append(edges, path.Edge[state]{Len: manhattan, To: state{nr, nc, s.b + 1}})
-				}
-			}
-		}
-		return edges
-	})
+	x := solveLinear(A, b)
 
-	start := state{sr, sc, 0}
-	end := path.EndFunc[state](func(s state) bool { return s.r == er && s.c == ec })
-	_, part2, err := path.Shortest(graph, start, end)
-	if err != nil {
-		part2 = -1
+	patches := make(map[int64]int64, n)
+	for j, v := range x {
+		patches[int64(j)] = v
+	}
+	check := runVM(prog, patches)
+	for i, v := range check {
+		if v != 0 {
+			panic("s03: patched output not zero at " + strconv.Itoa(i) + ": " + strconv.FormatInt(v, 10))
+		}
 	}
 
 	return []string{
-		strconv.Itoa(part1),
-		strconv.Itoa(part2),
+		strconv.FormatInt(weightedSum(b), 10),
+		strconv.FormatInt(weightedSum(x), 10),
 	}
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
+// solveLinear returns x such that A*x = -b using big.Rat Gauss elimination.
+// Panics if A is singular or x is not an int64-representable integer vector.
+func solveLinear(A [][]int64, b []int64) []int64 {
+	n := len(A)
+	M := make([][]*big.Rat, n)
+	for i := 0; i < n; i++ {
+		M[i] = make([]*big.Rat, n+1)
+		for j := 0; j < n; j++ {
+			M[i][j] = new(big.Rat).SetInt64(A[i][j])
+		}
+		M[i][n] = new(big.Rat).SetInt64(-b[i])
 	}
-	return x
+
+	for k := 0; k < n; k++ {
+		pivot := -1
+		for i := k; i < n; i++ {
+			if M[i][k].Sign() != 0 {
+				pivot = i
+				break
+			}
+		}
+		if pivot < 0 {
+			panic("s03: singular matrix")
+		}
+		if pivot != k {
+			M[k], M[pivot] = M[pivot], M[k]
+		}
+		for i := k + 1; i < n; i++ {
+			if M[i][k].Sign() == 0 {
+				continue
+			}
+			factor := new(big.Rat).Quo(M[i][k], M[k][k])
+			for j := k; j <= n; j++ {
+				term := new(big.Rat).Mul(factor, M[k][j])
+				M[i][j].Sub(M[i][j], term)
+			}
+		}
+	}
+
+	x := make([]*big.Rat, n)
+	for i := n - 1; i >= 0; i-- {
+		s := new(big.Rat).Set(M[i][n])
+		for j := i + 1; j < n; j++ {
+			term := new(big.Rat).Mul(M[i][j], x[j])
+			s.Sub(s, term)
+		}
+		x[i] = new(big.Rat).Quo(s, M[i][i])
+	}
+
+	out := make([]int64, n)
+	for i, r := range x {
+		if !r.IsInt() {
+			panic("s03: non-integer solution")
+		}
+		num := r.Num()
+		if !num.IsInt64() {
+			panic("s03: solution overflows int64")
+		}
+		out[i] = num.Int64()
+	}
+	return out
 }

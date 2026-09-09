@@ -3,328 +3,119 @@ package s02
 
 import (
 	"bytes"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/liennie/AdventOfCode/pkg/path"
+	"github.com/liennie/AdventOfCode/pkg/space"
 )
 
-// Rule is a single rewrite rule: LHS transforms into RHS after smoldering
-// for Smolder ticks.
-type Rule struct {
-	LHS     []string
-	RHS     []string
-	Smolder int
+const maxBombs = 3
+
+type state struct {
+	r, c, b int
 }
 
-// Solution computes the answers to Puzzle 02.
-//
-// Input:
-//  1. Initial blend, a single line of concatenated 2-letter compounds.
-//  2. A blank line.
-//  3. Rules, one per line, in the form "LHS N> RHS" where N is a positive
-//     integer smolder time. LHS and RHS are concatenated 2-letter compounds.
-//     RHS may be empty.
-//
-// Part 1 finds the first tick at which any Ax appears in the blend and
-// returns tick × its 1-indexed position.
-//
-// Part 2 finds the first tick at which at least half of the compounds in
-// the blend are Ax. In this puzzle each initial-blend token seeds an
-// independent cycle; the answer is LCM(cycle lengths) − 1.
+func parseGrid(input []byte) (grid [][]byte, sr, sc, er, ec int) {
+	sr, sc, er, ec = -1, -1, -1, -1
+	for _, line := range strings.Split(string(input), "\n") {
+		if line == "" {
+			continue
+		}
+		row := []byte(line)
+		for c, ch := range row {
+			switch ch {
+			case 'S':
+				sr, sc = len(grid), c
+			case 'E':
+				er, ec = len(grid), c
+			}
+		}
+		grid = append(grid, row)
+	}
+	return
+}
+
 func Solution(input []byte) []string {
 	if bytes.IndexByte(input, '\r') >= 0 {
 		panic("s02: CR in input, expected LF-only")
 	}
-	lines := strings.Split(string(input), "\n")
+	grid, sr, sc, er, ec := parseGrid(input)
+	rows := len(grid)
+	cols := 0
+	if rows > 0 {
+		cols = len(grid[0])
+	}
+	inBounds := func(r, c int) bool { return r >= 0 && r < rows && c >= 0 && c < cols }
 
-	var initial []string
-	var rules []Rule
-	seenBlend := false
-	for _, raw := range lines {
-		line := strings.TrimSpace(raw)
-		if line == "" {
-			continue
+	// Part 1: shortest 4-directional walk from S to E, walls block.
+	_, part1, err := path.Shortest(path.GraphFunc[space.Point](func(p space.Point) (e []path.Edge[space.Point]) {
+		for dir := range space.Orthogonal() {
+			np := p.Add(dir)
+			if inBounds(np.Y, np.X) && grid[np.Y][np.X] != '#' {
+				e = append(e, path.Edge[space.Point]{Len: 1, To: np})
+			}
 		}
-		if !seenBlend {
-			initial = parseCompounds(line)
-			seenBlend = true
-			continue
-		}
-		if r, ok := parseRule(line); ok {
-			rules = append(rules, r)
-		}
+		return
+	}), space.Point{X: sc, Y: sr}, path.EndConst(space.Point{X: ec, Y: er}))
+	if err != nil {
+		part1 = -1
 	}
 
-	part1 := simulatePart1(initial, rules)
-	part2 := simulatePart2(initial, rules)
+	// Part 2: shortest path with up to 3 "pre-placed" bomb jumps.
+	// A jump from (r, c) can reach any (r', c') with |dr| <= 3, |dc| <= 3,
+	// (dr, dc) != (0, 0), and (dr, dc) not one of the four extreme corners
+	// (+-3, +-3). The destination must be in-bounds. Cost = |dr|+|dc| walk
+	// steps plus one bomb charge consumed.
+	graph := path.GraphFunc[state](func(s state) []path.Edge[state] {
+		var edges []path.Edge[state]
+		// Walk moves.
+		for _, d := range [4][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} {
+			nr, nc := s.r+d[0], s.c+d[1]
+			if !inBounds(nr, nc) || grid[nr][nc] == '#' {
+				continue
+			}
+			edges = append(edges, path.Edge[state]{Len: 1, To: state{nr, nc, s.b}})
+		}
+		// Blast/jump moves.
+		if s.b < maxBombs {
+			for dr := -3; dr <= 3; dr++ {
+				for dc := -3; dc <= 3; dc++ {
+					if dr == 0 && dc == 0 {
+						continue
+					}
+					// Exclude the four extreme corners (+-3, +-3).
+					if (dr == 3 || dr == -3) && (dc == 3 || dc == -3) {
+						continue
+					}
+					nr, nc := s.r+dr, s.c+dc
+					if !inBounds(nr, nc) {
+						continue
+					}
+					manhattan := abs(dr) + abs(dc)
+					edges = append(edges, path.Edge[state]{Len: manhattan, To: state{nr, nc, s.b + 1}})
+				}
+			}
+		}
+		return edges
+	})
+
+	start := state{sr, sc, 0}
+	end := path.EndFunc[state](func(s state) bool { return s.r == er && s.c == ec })
+	_, part2, err := path.Shortest(graph, start, end)
+	if err != nil {
+		part2 = -1
+	}
 
 	return []string{
-		strconv.FormatInt(part1, 10),
-		strconv.FormatInt(part2, 10),
+		strconv.Itoa(part1),
+		strconv.Itoa(part2),
 	}
 }
 
-// simulatePart1 runs the blend forward tick by tick until Ax first appears.
-func simulatePart1(initial []string, rules []Rule) int64 {
-	s := newSim(append([]string(nil), initial...), rules)
-	if p := findAx(s.blend); p >= 0 {
-		assertSingleAx(s.blend, 0)
-		return 0
+func abs(x int) int {
+	if x < 0 {
+		return -x
 	}
-	s.matchRules(0)
-	for tick := int64(1); ; tick++ {
-		s.applyCompletions(tick)
-		if p := findAx(s.blend); p >= 0 {
-			assertSingleAx(s.blend, tick)
-			pos1 := int64(p + 1)
-			ans := tick * pos1
-			if pos1 != 0 && ans/pos1 != tick {
-				panic("s02: int64 overflow computing tick*position")
-			}
-			return ans
-		}
-		s.matchRules(tick)
-	}
-}
-
-// simulatePart2 exploits the puzzle's independent-group structure: each
-// initial-blend token seeds a closed cycle. Returns LCM of cycle lengths − 1.
-func simulatePart2(initial []string, rules []Rule) int64 {
-	l := int64(1)
-	for _, tok := range initial {
-		l = lcm(l, cycleLength(tok, rules))
-	}
-	return l - 1
-}
-
-// cycleLength returns the number of ticks from initial state [tok] until
-// the blend next returns to the single-token state [tok] with no rule
-// currently smoldering.
-func cycleLength(tok string, rules []Rule) int64 {
-	s := newSim([]string{tok}, rules)
-	s.matchRules(0)
-	for tick := int64(1); ; tick++ {
-		s.applyCompletions(tick)
-		if len(s.blend) == 1 && s.blend[0] == tok && len(s.commits) == 0 {
-			return tick
-		}
-		s.matchRules(tick)
-	}
-}
-
-func findAx(blend []string) int {
-	for i, t := range blend {
-		if t == "Ax" {
-			return i
-		}
-	}
-	return -1
-}
-
-// assertSingleAx verifies the generator's invariant that Ax first appears
-// alone. Solvers may take the leftmost Ax without checking, but this
-// solution panics so any generator change that breaks the invariant is
-// caught by TestEvent.
-func assertSingleAx(blend []string, tick int64) {
-	n := 0
-	for _, t := range blend {
-		if t == "Ax" {
-			n++
-		}
-	}
-	if n > 1 {
-		panic(fmt.Sprintf("s02: %d Ax at first appearance tick %d, expected exactly 1", n, tick))
-	}
-}
-
-// --- simulator ---
-
-type commit struct {
-	pos        int
-	length     int
-	rhs        []string
-	completeAt int64
-}
-
-type sim struct {
-	blend   []string
-	rules   []Rule
-	commits []commit
-}
-
-func newSim(blend []string, rules []Rule) *sim {
-	return &sim{blend: blend, rules: rules}
-}
-
-// applyCompletions runs any commitments whose completeAt equals tick.
-// It processes them right-to-left so that splicing doesn't shift the
-// positions of pending completions to their left; positions of *not*
-// completing commits to the right of a splice are adjusted by delta.
-func (s *sim) applyCompletions(tick int64) {
-	sort.Slice(s.commits, func(i, j int) bool { return s.commits[i].pos < s.commits[j].pos })
-	for i := len(s.commits) - 1; i >= 0; i-- {
-		c := s.commits[i]
-		if c.completeAt != tick {
-			continue
-		}
-		newBlend := make([]string, 0, len(s.blend)-c.length+len(c.rhs))
-		newBlend = append(newBlend, s.blend[:c.pos]...)
-		newBlend = append(newBlend, c.rhs...)
-		newBlend = append(newBlend, s.blend[c.pos+c.length:]...)
-		s.blend = newBlend
-		delta := len(c.rhs) - c.length
-		for j := range s.commits {
-			if j != i && s.commits[j].pos > c.pos {
-				s.commits[j].pos += delta
-			}
-		}
-		s.commits = append(s.commits[:i], s.commits[i+1:]...)
-	}
-}
-
-// matchRules scans uncommitted regions and commits every rule whose LHS
-// matches. Because inputs are generated so that rules never overlap in a
-// single tick, this panics if two matches would share any position.
-func (s *sim) matchRules(tick int64) {
-	mask := make([]bool, len(s.blend))
-	for _, c := range s.commits {
-		for k := c.pos; k < c.pos+c.length; k++ {
-			if k >= 0 && k < len(mask) {
-				mask[k] = true
-			}
-		}
-	}
-	type match struct {
-		pos, length, smolder int
-		rhs                  []string
-	}
-	var matches []match
-	for pos := 0; pos < len(s.blend); pos++ {
-		if mask[pos] {
-			continue
-		}
-		for i := range s.rules {
-			ru := &s.rules[i]
-			l := len(ru.LHS)
-			if pos+l > len(s.blend) {
-				continue
-			}
-			collided := false
-			for k := pos; k < pos+l; k++ {
-				if mask[k] {
-					collided = true
-					break
-				}
-			}
-			if collided {
-				continue
-			}
-			ok := true
-			for k := 0; k < l; k++ {
-				if s.blend[pos+k] != ru.LHS[k] {
-					ok = false
-					break
-				}
-			}
-			if ok {
-				matches = append(matches, match{pos, l, ru.Smolder, ru.RHS})
-			}
-		}
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].pos != matches[j].pos {
-			return matches[i].pos < matches[j].pos
-		}
-		return matches[i].length > matches[j].length
-	})
-	for i := 1; i < len(matches); i++ {
-		if matches[i].pos < matches[i-1].pos+matches[i-1].length {
-			panic(fmt.Sprintf(
-				"s02: overlapping rule matches at tick %d: [pos %d len %d] and [pos %d len %d]",
-				tick, matches[i-1].pos, matches[i-1].length,
-				matches[i].pos, matches[i].length,
-			))
-		}
-	}
-	for _, m := range matches {
-		s.commits = append(s.commits, commit{
-			pos:        m.pos,
-			length:     m.length,
-			rhs:        m.rhs,
-			completeAt: tick + int64(m.smolder),
-		})
-	}
-}
-
-// --- parsing ---
-
-func parseRule(line string) (Rule, bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 {
-		return Rule{}, false
-	}
-	if !strings.HasSuffix(fields[1], ">") {
-		return Rule{}, false
-	}
-	n, err := strconv.Atoi(strings.TrimSuffix(fields[1], ">"))
-	if err != nil || n < 1 {
-		return Rule{}, false
-	}
-	lhs := parseCompounds(fields[0])
-	if len(lhs) == 0 {
-		return Rule{}, false
-	}
-	var rhs []string
-	if len(fields) >= 3 {
-		rhs = parseCompounds(fields[2])
-		if rhs == nil {
-			return Rule{}, false
-		}
-	}
-	return Rule{LHS: lhs, RHS: rhs, Smolder: n}, true
-}
-
-func parseCompounds(s string) []string {
-	if len(s) == 0 {
-		return []string{}
-	}
-	if len(s)%2 != 0 {
-		return nil
-	}
-	out := make([]string, len(s)/2)
-	for i := range out {
-		out[i] = s[i*2 : i*2+2]
-	}
-	return out
-}
-
-// --- math ---
-
-func gcd(a, b int64) int64 {
-	if a < 0 {
-		a = -a
-	}
-	if b < 0 {
-		b = -b
-	}
-	for b != 0 {
-		a, b = b, a%b
-	}
-	return a
-}
-
-func lcm(a, b int64) int64 {
-	if a == 0 || b == 0 {
-		return 0
-	}
-	q := a / gcd(a, b)
-	// q * b overflow guard: with 5 primes near 200-280, the true product
-	// fits comfortably (~1e12), but a broken generator that grew that
-	// count could silently wrap. Fail loudly instead.
-	p := q * b
-	if b != 0 && p/b != q {
-		panic("s02: int64 overflow computing LCM")
-	}
-	return p
+	return x
 }

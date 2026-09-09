@@ -1,6 +1,6 @@
 id: "04"
-path: "boot-choreography"
-name: "04: Boot Choreography"
+path: "the-masters-blend"
+name: "04: The Master's Blend"
 
 parts:
   - id: "1"
@@ -12,25 +12,25 @@ parts:
 inputs:
   - file: inputs/01.txt
     answers:
-      - "-557775349"
-      - "2791931"
+      - "420"
+      - "723491704828"
 
   - file: inputs/02.txt
     answers:
-      - "988403367"
-      - "5926868"
+      - "1260"
+      - "631477939050"
 
   - file: inputs/03.txt
     answers:
-      - "1033228639"
-      - "-7986246"
+      - "452"
+      - "944235325140"
 
   - file: inputs/04.txt
     answers:
-      - "-1598083723"
-      - "-9450015"
+      - "2856"
+      - "1077260446036"
 
   - file: inputs/05.txt
     answers:
-      - "408421131"
-      - "7824336"
+      - "444"
+      - "799098816148"

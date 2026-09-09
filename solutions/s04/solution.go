@@ -3,270 +3,328 @@ package s04
 
 import (
 	"bytes"
-	"math/big"
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
 
-// The GT-Nano assembly VM: 10 opcodes, six signed-integer registers A..F, a
-// 1-D signed-integer memory tape, a signed-integer cursor. Jumps take signed
-// non-zero offsets applied to the pc of the jump instruction itself.
+// Rule is a single rewrite rule: LHS transforms into RHS after smoldering
+// for Smolder ticks.
+type Rule struct {
+	LHS     []string
+	RHS     []string
+	Smolder int
+}
+
+// Solution computes the answers to Puzzle 04.
 //
-// The program encodes a linear function of mem[0..n-1] for some small n. Both
-// parts treat the program as a black box. Part 1 runs it with mem = 0 and
-// reports a positional base-10 weighted sum of the outputs. Part 2 recovers
-// the underlying matrix A and constant vector b by probing with mem = 0 and
-// each unit vector, solves A*x = -b with big.Rat Gauss elimination, and
-// reports the same base-10 weighted sum of x.
-
-type operand struct {
-	isReg bool
-	reg   byte
-	imm   int64
-}
-
-type instr struct {
-	op   string
-	args []operand
-}
-
-func parseOperand(s string) operand {
-	if len(s) == 1 && s[0] >= 'A' && s[0] <= 'F' {
-		return operand{isReg: true, reg: s[0]}
-	}
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		panic("s04: bad operand: " + s)
-	}
-	return operand{imm: n}
-}
-
-func parseProgram(src string) []instr {
-	var prog []instr
-	for _, raw := range strings.Split(src, "\n") {
-		if i := strings.IndexByte(raw, ';'); i >= 0 {
-			raw = raw[:i]
-		}
-		line := strings.TrimSpace(raw)
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		op := strings.ToUpper(fields[0])
-		var args []operand
-		for _, f := range fields[1:] {
-			args = append(args, parseOperand(f))
-		}
-		prog = append(prog, instr{op: op, args: args})
-	}
-	return prog
-}
-
-// runVM executes prog with the given initial memory patches merged into the
-// otherwise-zero tape. Returns the OUT stream.
-func runVM(prog []instr, patches map[int64]int64) []int64 {
-	var regs [6]int64
-	value := func(o operand) int64 {
-		if o.isReg {
-			return regs[o.reg-'A']
-		}
-		return o.imm
-	}
-
-	mem := make(map[int64]int64, len(patches))
-	for k, v := range patches {
-		mem[k] = v
-	}
-	var x int64
-	var out []int64
-	pc := 0
-	for pc < len(prog) {
-		here := pc
-		ins := prog[pc]
-		pc++
-		switch ins.op {
-		case "LEFT":
-			x--
-		case "RIGHT":
-			x++
-		case "LOAD":
-			regs[ins.args[0].reg-'A'] = mem[x]
-		case "SAVE":
-			mem[x] = value(ins.args[0])
-		case "SET":
-			regs[ins.args[0].reg-'A'] = value(ins.args[1])
-		case "ADD":
-			ri := ins.args[0].reg - 'A'
-			regs[ri] = addChecked(regs[ri], value(ins.args[1]))
-		case "SUB":
-			ri := ins.args[0].reg - 'A'
-			regs[ri] = subChecked(regs[ri], value(ins.args[1]))
-		case "JMP":
-			off := value(ins.args[0])
-			if off == 0 {
-				panic("s04: JMP with zero offset")
-			}
-			pc = here + int(off)
-		case "JNZ":
-			if regs[ins.args[0].reg-'A'] != 0 {
-				off := value(ins.args[1])
-				if off == 0 {
-					panic("s04: JNZ with zero offset")
-				}
-				pc = here + int(off)
-			}
-		case "OUT":
-			out = append(out, value(ins.args[0]))
-		default:
-			panic("s04: unknown opcode: " + ins.op)
-		}
-	}
-	return out
-}
-
-// weightedSum returns Σ v[i] * 10^i. Panics on int64 overflow so a
-// runaway coefficient explodes at the digest step instead of silently
-// wrapping in the reported answer.
-func weightedSum(v []int64) int64 {
-	var sum, w int64 = 0, 1
-	for i, x := range v {
-		term := mulChecked(x, w)
-		sum = addChecked(sum, term)
-		if i < len(v)-1 {
-			w = mulChecked(w, 10)
-		}
-	}
-	return sum
-}
-
-func addChecked(a, b int64) int64 {
-	s := a + b
-	if (a > 0 && b > 0 && s < 0) || (a < 0 && b < 0 && s >= 0) {
-		panic("s04: int64 overflow in ADD")
-	}
-	return s
-}
-
-func subChecked(a, b int64) int64 {
-	s := a - b
-	if (b > 0 && s > a) || (b < 0 && s < a) {
-		panic("s04: int64 overflow in SUB")
-	}
-	return s
-}
-
-func mulChecked(a, b int64) int64 {
-	if a == 0 || b == 0 {
-		return 0
-	}
-	p := a * b
-	if p/a != b {
-		panic("s04: int64 overflow in MUL")
-	}
-	return p
-}
-
+// Input:
+//  1. Initial blend, a single line of concatenated 2-letter compounds.
+//  2. A blank line.
+//  3. Rules, one per line, in the form "LHS N> RHS" where N is a positive
+//     integer smolder time. LHS and RHS are concatenated 2-letter compounds.
+//     RHS may be empty.
+//
+// Part 1 finds the first tick at which any Ax appears in the blend and
+// returns tick × its 1-indexed position.
+//
+// Part 2 finds the first tick at which at least half of the compounds in
+// the blend are Ax. In this puzzle each initial-blend token seeds an
+// independent cycle; the answer is LCM(cycle lengths) − 1.
 func Solution(input []byte) []string {
 	if bytes.IndexByte(input, '\r') >= 0 {
 		panic("s04: CR in input, expected LF-only")
 	}
-	prog := parseProgram(string(input))
-	b := runVM(prog, nil)
-	n := len(b)
+	lines := strings.Split(string(input), "\n")
 
-	// Recover A column-by-column via unit-vector probes: A[:,j] = probe(e_j) - b.
-	A := make([][]int64, n)
-	for i := range A {
-		A[i] = make([]int64, n)
-	}
-	for j := 0; j < n; j++ {
-		col := runVM(prog, map[int64]int64{int64(j): 1})
-		if len(col) != n {
-			panic("s04: probe changed output length")
+	var initial []string
+	var rules []Rule
+	seenBlend := false
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
 		}
-		for i := 0; i < n; i++ {
-			A[i][j] = col[i] - b[i]
+		if !seenBlend {
+			initial = parseCompounds(line)
+			seenBlend = true
+			continue
 		}
-	}
-
-	x := solveLinear(A, b)
-
-	patches := make(map[int64]int64, n)
-	for j, v := range x {
-		patches[int64(j)] = v
-	}
-	check := runVM(prog, patches)
-	for i, v := range check {
-		if v != 0 {
-			panic("s04: patched output not zero at " + strconv.Itoa(i) + ": " + strconv.FormatInt(v, 10))
+		if r, ok := parseRule(line); ok {
+			rules = append(rules, r)
 		}
 	}
+
+	part1 := simulatePart1(initial, rules)
+	part2 := simulatePart2(initial, rules)
 
 	return []string{
-		strconv.FormatInt(weightedSum(b), 10),
-		strconv.FormatInt(weightedSum(x), 10),
+		strconv.FormatInt(part1, 10),
+		strconv.FormatInt(part2, 10),
 	}
 }
 
-// solveLinear returns x such that A*x = -b using big.Rat Gauss elimination.
-// Panics if A is singular or x is not an int64-representable integer vector.
-func solveLinear(A [][]int64, b []int64) []int64 {
-	n := len(A)
-	M := make([][]*big.Rat, n)
-	for i := 0; i < n; i++ {
-		M[i] = make([]*big.Rat, n+1)
-		for j := 0; j < n; j++ {
-			M[i][j] = new(big.Rat).SetInt64(A[i][j])
-		}
-		M[i][n] = new(big.Rat).SetInt64(-b[i])
+// simulatePart1 runs the blend forward tick by tick until Ax first appears.
+func simulatePart1(initial []string, rules []Rule) int64 {
+	s := newSim(append([]string(nil), initial...), rules)
+	if p := findAx(s.blend); p >= 0 {
+		assertSingleAx(s.blend, 0)
+		return 0
 	}
+	s.matchRules(0)
+	for tick := int64(1); ; tick++ {
+		s.applyCompletions(tick)
+		if p := findAx(s.blend); p >= 0 {
+			assertSingleAx(s.blend, tick)
+			pos1 := int64(p + 1)
+			ans := tick * pos1
+			if pos1 != 0 && ans/pos1 != tick {
+				panic("s04: int64 overflow computing tick*position")
+			}
+			return ans
+		}
+		s.matchRules(tick)
+	}
+}
 
-	for k := 0; k < n; k++ {
-		pivot := -1
-		for i := k; i < n; i++ {
-			if M[i][k].Sign() != 0 {
-				pivot = i
-				break
+// simulatePart2 exploits the puzzle's independent-group structure: each
+// initial-blend token seeds a closed cycle. Returns LCM of cycle lengths − 1.
+func simulatePart2(initial []string, rules []Rule) int64 {
+	l := int64(1)
+	for _, tok := range initial {
+		l = lcm(l, cycleLength(tok, rules))
+	}
+	return l - 1
+}
+
+// cycleLength returns the number of ticks from initial state [tok] until
+// the blend next returns to the single-token state [tok] with no rule
+// currently smoldering.
+func cycleLength(tok string, rules []Rule) int64 {
+	s := newSim([]string{tok}, rules)
+	s.matchRules(0)
+	for tick := int64(1); ; tick++ {
+		s.applyCompletions(tick)
+		if len(s.blend) == 1 && s.blend[0] == tok && len(s.commits) == 0 {
+			return tick
+		}
+		s.matchRules(tick)
+	}
+}
+
+func findAx(blend []string) int {
+	for i, t := range blend {
+		if t == "Ax" {
+			return i
+		}
+	}
+	return -1
+}
+
+// assertSingleAx verifies the generator's invariant that Ax first appears
+// alone. Solvers may take the leftmost Ax without checking, but this
+// solution panics so any generator change that breaks the invariant is
+// caught by TestEvent.
+func assertSingleAx(blend []string, tick int64) {
+	n := 0
+	for _, t := range blend {
+		if t == "Ax" {
+			n++
+		}
+	}
+	if n > 1 {
+		panic(fmt.Sprintf("s04: %d Ax at first appearance tick %d, expected exactly 1", n, tick))
+	}
+}
+
+// --- simulator ---
+
+type commit struct {
+	pos        int
+	length     int
+	rhs        []string
+	completeAt int64
+}
+
+type sim struct {
+	blend   []string
+	rules   []Rule
+	commits []commit
+}
+
+func newSim(blend []string, rules []Rule) *sim {
+	return &sim{blend: blend, rules: rules}
+}
+
+// applyCompletions runs any commitments whose completeAt equals tick.
+// It processes them right-to-left so that splicing doesn't shift the
+// positions of pending completions to their left; positions of *not*
+// completing commits to the right of a splice are adjusted by delta.
+func (s *sim) applyCompletions(tick int64) {
+	sort.Slice(s.commits, func(i, j int) bool { return s.commits[i].pos < s.commits[j].pos })
+	for i := len(s.commits) - 1; i >= 0; i-- {
+		c := s.commits[i]
+		if c.completeAt != tick {
+			continue
+		}
+		newBlend := make([]string, 0, len(s.blend)-c.length+len(c.rhs))
+		newBlend = append(newBlend, s.blend[:c.pos]...)
+		newBlend = append(newBlend, c.rhs...)
+		newBlend = append(newBlend, s.blend[c.pos+c.length:]...)
+		s.blend = newBlend
+		delta := len(c.rhs) - c.length
+		for j := range s.commits {
+			if j != i && s.commits[j].pos > c.pos {
+				s.commits[j].pos += delta
 			}
 		}
-		if pivot < 0 {
-			panic("s04: singular matrix")
+		s.commits = append(s.commits[:i], s.commits[i+1:]...)
+	}
+}
+
+// matchRules scans uncommitted regions and commits every rule whose LHS
+// matches. Because inputs are generated so that rules never overlap in a
+// single tick, this panics if two matches would share any position.
+func (s *sim) matchRules(tick int64) {
+	mask := make([]bool, len(s.blend))
+	for _, c := range s.commits {
+		for k := c.pos; k < c.pos+c.length; k++ {
+			if k >= 0 && k < len(mask) {
+				mask[k] = true
+			}
 		}
-		if pivot != k {
-			M[k], M[pivot] = M[pivot], M[k]
+	}
+	type match struct {
+		pos, length, smolder int
+		rhs                  []string
+	}
+	var matches []match
+	for pos := 0; pos < len(s.blend); pos++ {
+		if mask[pos] {
+			continue
 		}
-		for i := k + 1; i < n; i++ {
-			if M[i][k].Sign() == 0 {
+		for i := range s.rules {
+			ru := &s.rules[i]
+			l := len(ru.LHS)
+			if pos+l > len(s.blend) {
 				continue
 			}
-			factor := new(big.Rat).Quo(M[i][k], M[k][k])
-			for j := k; j <= n; j++ {
-				term := new(big.Rat).Mul(factor, M[k][j])
-				M[i][j].Sub(M[i][j], term)
+			collided := false
+			for k := pos; k < pos+l; k++ {
+				if mask[k] {
+					collided = true
+					break
+				}
+			}
+			if collided {
+				continue
+			}
+			ok := true
+			for k := 0; k < l; k++ {
+				if s.blend[pos+k] != ru.LHS[k] {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				matches = append(matches, match{pos, l, ru.Smolder, ru.RHS})
 			}
 		}
 	}
-
-	x := make([]*big.Rat, n)
-	for i := n - 1; i >= 0; i-- {
-		s := new(big.Rat).Set(M[i][n])
-		for j := i + 1; j < n; j++ {
-			term := new(big.Rat).Mul(M[i][j], x[j])
-			s.Sub(s, term)
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].pos != matches[j].pos {
+			return matches[i].pos < matches[j].pos
 		}
-		x[i] = new(big.Rat).Quo(s, M[i][i])
+		return matches[i].length > matches[j].length
+	})
+	for i := 1; i < len(matches); i++ {
+		if matches[i].pos < matches[i-1].pos+matches[i-1].length {
+			panic(fmt.Sprintf(
+				"s04: overlapping rule matches at tick %d: [pos %d len %d] and [pos %d len %d]",
+				tick, matches[i-1].pos, matches[i-1].length,
+				matches[i].pos, matches[i].length,
+			))
+		}
 	}
+	for _, m := range matches {
+		s.commits = append(s.commits, commit{
+			pos:        m.pos,
+			length:     m.length,
+			rhs:        m.rhs,
+			completeAt: tick + int64(m.smolder),
+		})
+	}
+}
 
-	out := make([]int64, n)
-	for i, r := range x {
-		if !r.IsInt() {
-			panic("s04: non-integer solution")
+// --- parsing ---
+
+func parseRule(line string) (Rule, bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return Rule{}, false
+	}
+	if !strings.HasSuffix(fields[1], ">") {
+		return Rule{}, false
+	}
+	n, err := strconv.Atoi(strings.TrimSuffix(fields[1], ">"))
+	if err != nil || n < 1 {
+		return Rule{}, false
+	}
+	lhs := parseCompounds(fields[0])
+	if len(lhs) == 0 {
+		return Rule{}, false
+	}
+	var rhs []string
+	if len(fields) >= 3 {
+		rhs = parseCompounds(fields[2])
+		if rhs == nil {
+			return Rule{}, false
 		}
-		num := r.Num()
-		if !num.IsInt64() {
-			panic("s04: solution overflows int64")
-		}
-		out[i] = num.Int64()
+	}
+	return Rule{LHS: lhs, RHS: rhs, Smolder: n}, true
+}
+
+func parseCompounds(s string) []string {
+	if len(s) == 0 {
+		return []string{}
+	}
+	if len(s)%2 != 0 {
+		return nil
+	}
+	out := make([]string, len(s)/2)
+	for i := range out {
+		out[i] = s[i*2 : i*2+2]
 	}
 	return out
+}
+
+// --- math ---
+
+func gcd(a, b int64) int64 {
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
+func lcm(a, b int64) int64 {
+	if a == 0 || b == 0 {
+		return 0
+	}
+	q := a / gcd(a, b)
+	// q * b overflow guard: with 5 primes near 200-280, the true product
+	// fits comfortably (~1e12), but a broken generator that grew that
+	// count could silently wrap. Fail loudly instead.
+	p := q * b
+	if b != 0 && p/b != q {
+		panic("s04: int64 overflow computing LCM")
+	}
+	return p
 }

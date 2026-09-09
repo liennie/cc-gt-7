@@ -1,87 +1,87 @@
-# 04: Boot Choreography {#1}
+# 04: The Master's Blend {#1}
 
-Wednesday. After breakfast the crew wheels the big table onto the lawn
-and unpacks a crate of palm-sized tracked robots the group has been
-building all year: LED strip down the spine, a hobby servo at each end,
-and a house-built SBC - the *GT-Nano* - soldered in the middle.
+Wednesday evening. The house shisha master has spent the afternoon in the
+kitchen preparing a lineup of tobacco *blends* for the night, each one a
+careful mix of his favourite flavours packed into its own bowl. You grab
+the first bowl, set an HMS on top, drop the coals into the HMS, and settle
+in. Now you just have to hope the master got the chemistry right - one
+wisp of *ash* too early and the whole pipe is spoiled.
 
-Every unit ships with a factory boot ROM. When the robot powers on it
-runs the ROM, streams its `6` "opening pose" numbers onto the
-choreography bus, and clunks into position ready for the day's dance.
-Nobody has the schematic any more; all you have is the assembly listing
-that the boot ROM was compiled from.
+## Compounds and blends
 
-The GT-Nano is a tiny virtual machine with:
+Every tobacco mix the master prepares is really a *blend* of flavour
+*compounds* packed one after another into the bowl.
 
-* *six signed-integer registers* `A B C D E F`, all initially zero;
-* an *infinite tape* of signed-integer cells indexed by a signed
-  cursor `cur`, all cells initially zero;
-* an *output stream* of numbers, initially empty.
+A *compound* is a two-letter token: an uppercase letter followed by a
+lowercase letter (e.g. `Ap`, `Vn`, `Sm`, `Ax`). A *blend* is a sequence
+of compounds written back-to-back with no separators, e.g. `ApVnSmAx` is
+four compounds: `Ap`, `Vn`, `Sm`, `Ax`.
 
-## Instruction set
+The *ash* compound is always `Ax`. Every other compound in your input is
+one of many flavours the master keeps in his cabinet.
 
-Every instruction takes zero, one or two operands. An operand is either
-a **register** (single upper-case letter `A..F`) or a signed
-**immediate** integer.
+## Rules
 
-| instruction | effect                          |
-| ----------- | ------------------------------- |
-| `LEFT`      | `cur -= 1`                      |
-| `RIGHT`     | `cur += 1`                      |
-| `LOAD R`    | `R = mem[cur]`                  |
-| `SAVE V`    | `mem[cur] = V`                  |
-| `SET R V`   | `R = V`                         |
-| `ADD R V`   | `R += V`                        |
-| `SUB R V`   | `R -= V`                        |
-| `JMP V`     | jump by `V`                     |
-| `JNZ R V`   | if `R != 0`, jump by `V`        |
-| `OUT V`     | append `V` to the output stream |
+Each *rule* describes how a run of adjacent compounds transforms under
+heat. Rules are written on one line each in the form
 
-Lines are numbered `0, 1, 2, ...` from the top of the program, and the
-program counter `pc` starts at line `0`. Non-jump instructions advance
-`pc` by one line. A jump instruction reads a non-zero signed offset `V`
-and sets `pc = pc + V`, where `pc` is the address of the *jump
-instruction itself*. `JMP 1` is therefore a no-op, `JMP 2` skips the
-next line, and `JMP -1` jumps to the previous line. Execution halts
-when `pc` walks off the end of the program.
+````
+*LHS* *N*> *RHS*
+````
+
+where
+
+* `LHS` is one or more compounds concatenated (the pattern to match).
+* `RHS` is zero or more compounds concatenated (the pattern produced).
+* `N` is a positive integer - the *smolder time* in ticks.
+
+At every tick, every occurrence of a rule's `LHS` in the blend causes that
+rule to fire: the matched compounds *smolder in place, unchanged, for
+exactly `N` ticks* and then, in a single atomic step, are replaced by the
+rule's `RHS`.
+
+A compound that is smoldering as part of one rule cannot simultaneously
+participate in another rule. The rules in your input are designed so that
+at every tick no two rule matches overlap.
+
+Positions in the blend are numbered starting at `1` from the left.
 
 ## Input
 
-Your puzzle input is the assembly program, one instruction per line.
+The first line of your puzzle input is the initial blend at tick `0`.
+Then a blank line. Then one rule per line, in no particular order.
 
 ## Part 1
 
-Boot the program with all registers, memory cells and the cursor at
-`0` and run it to completion. It emits exactly `6` output values
-`V0 V1 V2 V3 V4 V5` in that order. Return the *positional
-base-10 digest*
+Simulate the blend under coal. Find the *first tick at which any `Ax`
+compound is present in the blend*. Return the tick number multiplied by
+the `1`-indexed position of that `Ax` in the blend at that tick.
 
-    1×V0 + 10×V1 + 100×V2 + 1000×V3 + 10000×V4 + 100000×V5
+If more than one `Ax` appears in the blend on that tick, use the position
+of the leftmost one.
 
 ### Example
 
-Consider a small program that emits `2` outputs (instead of `6`), so its
-scaled-down digest is `1×V0 + 10×V1`:
-
 ```
-SET A 1
-LOAD B
-SET C 2
-ADD A B
-SUB C 1
-JNZ C -2
-RIGHT
-LOAD B
-ADD A B
-OUT A
-SET A -1
-LOAD B
-ADD A B
-LEFT
-LOAD B
-ADD A B
-OUT A
+ApVn
+
+Ap 3> HzSm
+Vn 2> LcCf
+SmLc 3> Ax
+Hz 9> Ax
+Cf 7> Ax
 ```
 
-Booted with all-zero memory the program emits `V0 = 1` and
-`V1 = -1`, giving a digest of *1×1 + 10×(-1)* = `-9`.
+Tracing tick by tick:
+
+| tick | blend          | applied rule                 | matched rule       |
+| ---: | :------------- | :--------------------------- | :----------------- |
+| 0    | `ApVn`         |                              | `Ap 3>`, `Vn 2>`   |
+| 1    | `ApVn`         |                              |                    |
+| 2    | ``Ap*LcCf*``   | ``Vn 2> *LcCf*``             | `Cf 7>`            |
+| 3    | ``*HzSm*LcCf`` | ``Ap 3> *HzSm*``             | `Hz 9>`, `SmLc 3>` |
+| ...  |                |                              |                    |
+| 6    | ``Hz*Ax*Cf``   | ``SmLc 3> *Ax*`` (first ash) |                    |
+
+`Ax` first appears at tick *6*, at position *2* in the blend
+``Hz*Ax*Cf``, so the answer is *6 × 2* = `12`.

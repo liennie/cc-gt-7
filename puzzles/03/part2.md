@@ -1,44 +1,24 @@
 ## Part 2 {#2}
 
-The first heat was a warm-up. Someone digs the actual demolition
-charges out of the tool shed - the surveyor left them there after the
-mapping run - and hands each racer *three bombs* to plant on the map
-before the sprint starts.
+Someone squats next to a running unit and watches its opening pose:
+elbow up, tracks crooked, LED spine flickering in a sad rainbow.
+*"That's not the pose it should be striking. The neutral 'stand at
+attention' is meant to be six zeros on the bus. Whoever set up the
+assembly line got creative and now the boot ROM is producing
+nonsense."* They tap the debug port on the GT-Nano's chassis.
+*"But look - if we seed the first six memory cells before the ROM
+runs, the LOADs will pick those up instead of zero. So, what do we
+put in there?"*
 
-A bomb may be planted on any cell inside the grid, wall or corridor.
-All of them detonate before the run; each blast turns the walls in a
-`3 × 3` area centered on the bomb's cell into walkable corridor. Once
-the dust settles the sprint plays by the same rules as part 1.
+Determine the six signed integers `X0 X1 X2 X3 X4 X5` that, when
+written into cells `0 1 2 3 4 5` before execution begins, cause every
+output value to be `0`. Everything else - the registers, all other
+tape cells, the cursor - still starts at `0`.
 
-You don't have to use all three bombs; leaving one or two in your
-pocket is fine if you don't need them.
+Return the positional base-10 digest of the six values:
 
-Same goal: find the *shortest path* from `S` to `E`.
+    1×X0 + 10×X1 + 100×X2 + 1000×X3 + 10000×X4 + 100000×X5
 
-In the example from part 1, two bombs planted at *row `2`, column `5`*
-and *row `13`, column `14`* punch a hole through the wall blocking row `1` right
-next to `S` and the wall band shielding `E`, so the racer can march
-straight along row `1` and then straight down column `13`. Below, the
-`@` cells are the two `3 × 3` craters and the *emphasised* cells trace
-the racer's route:
-
-````
-###@@@#########
-*S..@@@........*#
-#.#@@@#######*.*#
-#.....#.....#*.*#
-#.#####.###.#*.*#
-#.#.....#...#*.*#
-###.#.###.#.#*.*#
-#...#...#.#..*.*#
-#.#.###.#.###*.*#
-#.#.....#...#*.*#
-#.###.###.#.#*.*#
-#.#...#...#.@*@*@
-#.#.###.####@*@*@
-#...........@*E*@
-###############
-````
-
-The shortest walk in the modified grid is `25` steps. The third bomb
-stays in the racer's pocket.
+For the same `17`-line program from part 1, writing `X0 = -2` into
+cell `0` and `X1 = 3` into cell `1` before booting zeros both outputs,
+so the scaled-down digest is *1×(-2) + 10×3* = `28`.

@@ -1,6 +1,6 @@
 id: "02"
-path: "the-masters-blend"
-name: "02: The Master's Blend"
+path: "bunker-sprint"
+name: "02: Bunker Sprint"
 
 parts:
   - id: "1"
@@ -12,25 +12,25 @@ parts:
 inputs:
   - file: inputs/01.txt
     answers:
-      - "420"
-      - "723491704828"
+      - "865"
+      - "265"
 
   - file: inputs/02.txt
     answers:
-      - "1260"
-      - "631477939050"
+      - "701"
+      - "277"
 
   - file: inputs/03.txt
     answers:
-      - "452"
-      - "944235325140"
+      - "521"
+      - "313"
 
   - file: inputs/04.txt
     answers:
-      - "2856"
-      - "1077260446036"
+      - "789"
+      - "257"
 
   - file: inputs/05.txt
     answers:
-      - "444"
-      - "799098816148"
+      - "697"
+      - "285"

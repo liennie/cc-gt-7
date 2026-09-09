@@ -72,12 +72,12 @@ Thursday alongside the barcamp itself; the courtyard feast on Friday
 is lore, not a puzzle beat.
 
 The story flavour throughout the puzzles pulls directly from Garage
-Trip lore: the Sunday-morning porch tile game (01), the shisha lounge
-(02, echoing the gt::6.9 "shisha master and bartender"), the woodland
-bunker (03, echoing the gt::6.9 WWII bunker visit), the AI-coding
-workshop with its palm-sized GT-Nano robots on the lawn (04), and the
-Thursday barcamp lineup on the cottage TV (05). The Sun-Thu markdown
-is one coherent trip, not five unrelated prompts.
+Trip lore: the Sunday-morning porch tile game (01), the woodland
+bunker (02, echoing the gt::6.9 WWII bunker visit), the AI-coding
+workshop with its palm-sized GT-Nano robots on the lawn (03), the
+shisha lounge (04, echoing the gt::6.9 "shisha master and bartender"),
+and the Thursday barcamp lineup on the cottage TV (05). The Sun-Thu
+markdown is one coherent trip, not five unrelated prompts.
 
 The author writes both the puzzles and the reference solutions before
 the event; solutions live in `solutions/sNN/` and `TestEvent` locks the
@@ -90,12 +90,15 @@ event, participants receive only the story markdown (`part1.md`,
 - Go module: `module puzzles`, `go 1.26.0`.
 - Sibling repo dependency: `replace github.com/liennie/code-and-chill => ../code-and-chill`
   (used by `event_test.go` via `github.com/liennie/code-and-chill/pkg/eventtest`).
-- Transitive: `github.com/liennie/AdventOfCode` (used by s03 for
+- Transitive: `github.com/liennie/AdventOfCode` (used by s02 for
   `pkg/path.Shortest`).
 - Randomness: every generator uses `math/rand/v2` seeded
-  `NewPCG(0x0N_5eed_5eed, uint64(idx)+1)` where N is the puzzle number
-  (1–5) and `idx` is the 0-based input index. Determinism is critical —
-  regenerating must reproduce the current inputs byte-for-byte.
+  `NewPCG(0x0N_5eed_5eed, uint64(idx)+1)` where N is the generator's
+  historical identifier (1..5, assigned before the 01/03/04/02/05
+  reorder — see the puzzle roster for the current identity of each
+  generator directory) and `idx` is the 0-based input index.
+  Determinism is critical — regenerating must reproduce the current
+  inputs byte-for-byte.
 
 ## Repository layout
 
@@ -142,64 +145,7 @@ that sum to `7.00`; empty selection excluded.
 - Solver: freq-map for Part 1; memoised DP `f(i, t)` over signed subsets
   for Part 2, with `suffAbs` pruning.
 
-### 02 — "The Master's Blend" (Monday, shisha lounge) — most involved
-
-A blend is a sequence of 2-char compounds (`Ap Vn Sm Ax` …). Rules
-`LHS N> RHS` fire when LHS appears in the blend: it smolders in place for
-`N` ticks, then atomically becomes RHS. A smoldering region can't
-overlap another rule. **Part 1**: first tick any `Ax` appears × its
-1-indexed position. **Part 2**: first tick where at least half of the
-blend is `Ax`.
-
-Design invariant (never surfaced in the puzzle text): the 5 starting
-tokens seed 5 **independent groups**. Each group's rules form a closed
-chain with **prime cycle length** from `{211,223,227,229,233,239,241,251,
-257,263,269,271,277,281,283}` — Part 2 answer is `LCM(cycles) − 1`
-(≈10¹¹–10¹²).
-
-Generator (`generators/g02/generator.go`, ~830 lines):
-
-- Each group starts `Fs > [c1..cn F]` (n∈1..3). Every catalyst is drawn
-  globally unique; every intermediate rule's LHS contains a token freshly
-  produced by the immediately preceding rule → exactly one rule fires per
-  tick per group.
-- 10–15 middle steps chosen from three excursion tiers: 30% `simple`
-  (`C>C'`, `CF>C'F`, `CF>C'F'`), 25% short excursion (expand + walk +
-  consolidate on size 2 or 3), 45% `longExcursion` — 4-way dispatch:
-  `walk2`, `walk3`, `decay3`, `bubble`.
-- Bubbling (`subgroupBubble` / `bubbleChain`): rewrites a strict subgroup
-  (window size 1..n-1) of an expanded state to introduce a fresh
-  catalyst, threading an anchor so consecutive bubbles must include the
-  last rewritten position. `bubbleExcursion` dispatches 4-way over
-  `bubbleMidShift`, `bubbleRightFence`, `bubbleWaitDecay`, `bubbleSameShape`.
-- Ash producer/consumer: one rule with `Ax` in RHS, one rule with `Ax` in
-  LHS producing `[Fs]` back. Ash consumer keeps smolder 1 (Ax lives one
-  tick per cycle per group).
-- Post-generation, `distributeSmolder` pads the total smolder so the
-  observed cycle length equals the prime target `L_i`. **Rule-count =
-  cycle-length invariant** must survive any generator change.
-- Fence tokens: 15 pool; 5 distinct **starting** fences, intermediate
-  rules draw from the remaining 10 so no intermediate can accidentally
-  match another group's starting rule.
-
-Solver (`solutions/s02/solution.go`, ~296 lines):
-
-- `sim{blend, rules, commits}`. `commit{pos, length, rhs, completeAt}`.
-- `matchRules(tick)`: scans uncommitted positions, collects **every**
-  matching rule, sorts by `(pos asc, length desc)`, and **panics** on any
-  overlap `matches[i].pos < matches[i-1].pos + matches[i-1].length`. This
-  enforces the generator's one-rule-per-tick-per-group invariant.
-  Non-overlapping matches are all committed at the same tick (needed for
-  5 parallel groups).
-- `applyCompletions(tick)`: sorts by pos, splices R-to-L, delta-adjusts
-  positions of remaining commits to the right of each splice.
-- `simulatePart2` uses per-token `cycleLength` + LCM (returns `lcm − 1`).
-  Never runs the full LCM ticks.
-
-Rule wire format: `strings.Fields(line)`; if `<3` fields, RHS is `nil`
-(empty). RHS is written without trailing space when empty.
-
-### 03 — "Bunker Sprint" (Tuesday)
+### 02 — "Bunker Sprint" (Monday)
 
 101×101 grid with `#`, `.`, `S`, `E`. **Part 1**: shortest 4-directional
 walk from `S` to `E` (returns `-1` if unreachable — never happens on
@@ -218,10 +164,10 @@ walker paths the modified grid the same way as Part 1.
   but on every hand-crafted test up to 15×15 the two produce the same
   Part 2, pinned by `TestWallDestructionEquivalence` in `verify_test.go`
   (brute-force enumeration of every triple of in-bounds bomb centers,
-  BFS on the modified grid, min over placements). See the "Puzzle 03"
+  BFS on the modified grid, min over placements). See the "Puzzle 02"
   bullet under "Conventions and gotchas" for the caveat.
 
-### 04 — "Boot Choreography" (Wednesday)
+### 03 — "Boot Choreography" (Tuesday)
 
 Tiny VM (in-story: the *GT-Nano*, a house-built SBC driving palm-sized
 robots with LED strip + servos; the OUT stream is the robot's
@@ -262,6 +208,63 @@ so every output is `0`; report `Σ x_j · 10^j`.
 - Text NEVER mentions systems, matrices, linearity, ranges, or the
   block/sweep structure. Those are pure generator secrets.
 
+### 04 — "The Master's Blend" (Wednesday, shisha lounge) — most involved
+
+A blend is a sequence of 2-char compounds (`Ap Vn Sm Ax` …). Rules
+`LHS N> RHS` fire when LHS appears in the blend: it smolders in place for
+`N` ticks, then atomically becomes RHS. A smoldering region can't
+overlap another rule. **Part 1**: first tick any `Ax` appears × its
+1-indexed position. **Part 2**: first tick where at least half of the
+blend is `Ax`.
+
+Design invariant (never surfaced in the puzzle text): the 5 starting
+tokens seed 5 **independent groups**. Each group's rules form a closed
+chain with **prime cycle length** from `{211,223,227,229,233,239,241,251,
+257,263,269,271,277,281,283}` — Part 2 answer is `LCM(cycles) − 1`
+(≈10¹¹–10¹²).
+
+Generator (`generators/g04/generator.go`, ~830 lines):
+
+- Each group starts `Fs > [c1..cn F]` (n∈1..3). Every catalyst is drawn
+  globally unique; every intermediate rule's LHS contains a token freshly
+  produced by the immediately preceding rule → exactly one rule fires per
+  tick per group.
+- 10–15 middle steps chosen from three excursion tiers: 30% `simple`
+  (`C>C'`, `CF>C'F`, `CF>C'F'`), 25% short excursion (expand + walk +
+  consolidate on size 2 or 3), 45% `longExcursion` — 4-way dispatch:
+  `walk2`, `walk3`, `decay3`, `bubble`.
+- Bubbling (`subgroupBubble` / `bubbleChain`): rewrites a strict subgroup
+  (window size 1..n-1) of an expanded state to introduce a fresh
+  catalyst, threading an anchor so consecutive bubbles must include the
+  last rewritten position. `bubbleExcursion` dispatches 4-way over
+  `bubbleMidShift`, `bubbleRightFence`, `bubbleWaitDecay`, `bubbleSameShape`.
+- Ash producer/consumer: one rule with `Ax` in RHS, one rule with `Ax` in
+  LHS producing `[Fs]` back. Ash consumer keeps smolder 1 (Ax lives one
+  tick per cycle per group).
+- Post-generation, `distributeSmolder` pads the total smolder so the
+  observed cycle length equals the prime target `L_i`. **Rule-count =
+  cycle-length invariant** must survive any generator change.
+- Fence tokens: 15 pool; 5 distinct **starting** fences, intermediate
+  rules draw from the remaining 10 so no intermediate can accidentally
+  match another group's starting rule.
+
+Solver (`solutions/s04/solution.go`, ~296 lines):
+
+- `sim{blend, rules, commits}`. `commit{pos, length, rhs, completeAt}`.
+- `matchRules(tick)`: scans uncommitted positions, collects **every**
+  matching rule, sorts by `(pos asc, length desc)`, and **panics** on any
+  overlap `matches[i].pos < matches[i-1].pos + matches[i-1].length`. This
+  enforces the generator's one-rule-per-tick-per-group invariant.
+  Non-overlapping matches are all committed at the same tick (needed for
+  5 parallel groups).
+- `applyCompletions(tick)`: sorts by pos, splices R-to-L, delta-adjusts
+  positions of remaining commits to the right of each splice.
+- `simulatePart2` uses per-token `cycleLength` + LCM (returns `lcm − 1`).
+  Never runs the full LCM ticks.
+
+Rule wire format: `strings.Fields(line)`; if `<3` fields, RHS is `nil`
+(empty). RHS is written without trailing space when empty.
+
 ### 05 — "Barcamp Lineup" (Thursday, cottage TV)
 
 Three blank-line sections: HYPE (`slug int`), CONFLICTS (`slug slug`),
@@ -294,13 +297,13 @@ independent set across the forest.
 
 ## Committed answers (`puzzles/NN/puzzle.yaml`)
 
-| # | 01               | 02               | 03           | 04                                | 05        |
-|---|------------------|------------------|--------------|-----------------------------------|-----------|
-| 1 | 31 / 56842165683797805 | 420 / 723491704828 | 865 / 265 | -557775349 / 2791931       | 8697 / 25746 |
-| 2 | 31 / 50543652303855546 | 1260 / 631477939050 | 701 / 277 | 988403367 / 5926868        | 11430 / 26597 |
-| 3 | 39 / 58569109103239985 | 452 / 944235325140 | 521 / 313 | 1033228639 / -7986246       | 7210 / 27155 |
-| 4 | 32 / 55960769019965964 | 2856 / 1077260446036 | 789 / 257 | -1598083723 / -9450015    | 8192 / 27832 |
-| 5 | 33 / 51855039244186640 | 444 / 799098816148 | 697 / 285 | 408421131 / 7824336        | 8217 / 30313 |
+| # | 01               | 02           | 03                                | 04               | 05        |
+|---|------------------|--------------|-----------------------------------|------------------|-----------|
+| 1 | 31 / 56842165683797805 | 865 / 265 | -557775349 / 2791931       | 420 / 723491704828 | 8697 / 25746 |
+| 2 | 31 / 50543652303855546 | 701 / 277 | 988403367 / 5926868        | 1260 / 631477939050 | 11430 / 26597 |
+| 3 | 39 / 58569109103239985 | 521 / 313 | 1033228639 / -7986246       | 452 / 944235325140 | 7210 / 27155 |
+| 4 | 32 / 55960769019965964 | 789 / 257 | -1598083723 / -9450015    | 2856 / 1077260446036 | 8192 / 27832 |
+| 5 | 33 / 51855039244186640 | 697 / 285 | 408421131 / 7824336        | 444 / 799098816148 | 8217 / 30313 |
 
 ## Conventions and gotchas
 
@@ -309,22 +312,22 @@ independent set across the forest.
 - **Answer stability**: any generator change must be validated with
   `go test ./...` (which runs `TestEvent`). If answers shift, update
   `puzzle.yaml` in the same commit.
-- **Puzzle 02 invariant**: rules must never overlap in a tick. The solver
+- **Puzzle 04 invariant**: rules must never overlap in a tick. The solver
   panics on violation with
-  `s02: overlapping rule matches at tick T: [pos p1 len l1] and [pos p2 len l2]`.
+  `s04: overlapping rule matches at tick T: [pos p1 len l1] and [pos p2 len l2]`.
   Do not silence this panic — a trigger means the generator broke the
   chain-uniqueness property.
-- **Puzzle 02 rule shapes** on input 01: 54 `1>1`, 49 `2>2`, 10 `3>3`,
+- **Puzzle 04 rule shapes** on input 01: 54 `1>1`, 49 `2>2`, 10 `3>3`,
   4 `4>4`, and 12 `1>0` decays, plus a mix of size-changing shapes
   (`1>2`, `1>3`, `1>4`, `2>1`, `2>3`, `2>4`, `3>1`, `3>2`, `4>2`).
   Empty RHS emitted without trailing space.
-- **Puzzle 03 dive/wall-destruction split**: the puzzle text tells the
+- **Puzzle 02 dive/wall-destruction split**: the puzzle text tells the
   player that bombs pre-detonate `3 × 3` wall craters and then the
   sprint runs by Part 1's rules. The shipped solver actually runs a
   dive/warp graph (`|dr|, |dc| <= 3`, minus origin and the four
   `(±3, ±3)` corners, cost `|dr|+|dc|`, up to 3 uses); the two mechanics
   produce the same Part 2 numbers on every committed input, verified by
-  `TestWallDestructionEquivalence` in `solutions/s03/verify_test.go`
+  `TestWallDestructionEquivalence` in `solutions/s02/verify_test.go`
   (exhaustive brute-force enumeration of every triple of in-bounds bomb
   centers on small hand-crafted grids up to `15 × 15`). The real
   `101 × 101` inputs are too big to brute-force; keep the equivalence

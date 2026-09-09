@@ -2,296 +2,176 @@ package s02
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
 
-func TestSolutionDocExample(t *testing.T) {
-	// Puzzle-text example: 2 groups with smolder 2 and 3.
-	// Group 1: Ap → SmMn (2 ticks) → SmAx (1) → Ap (1). Cycle 4.
-	// Group 2: Vn → HzLc (3 ticks) → HzAx (1) → Vn (1). Cycle 5.
-	// First Ax at tick 3, position 2 → Part 1 = 6.
-	// LCM(4,5) = 20 → Part 2 = 19.
-	input := `ApVn
-
-Ap 2> SmMn
-SmMn 1> SmAx
-SmAx 1> Ap
-Vn 3> HzLc
-HzLc 1> HzAx
-HzAx 1> Vn
-`
-	got := Solution([]byte(input))
-	if len(got) != 2 {
-		t.Fatalf("want 2 answers, got %d", len(got))
-	}
-	if got[0] != "6" {
-		t.Errorf("part1: got %q, want %q", got[0], "6")
-	}
-	if got[1] != "19" {
-		t.Errorf("part2: got %q, want %q", got[1], "19")
-	}
-}
-
-func TestSolutionSmolderOne(t *testing.T) {
-	// Single-group case, all smolders = 1. Chain:
-	// Fs=Ap → Sm Mn → Sm Ax → Ap. Cycle 3. First Ax at tick 2, position 2.
-	// Part 1 = 4. Only 1 group, so Part 2 = LCM(3) - 1 = 2.
-	input := `Ap
-
-Ap 1> SmMn
-SmMn 1> SmAx
-SmAx 1> Ap
-`
-	got := Solution([]byte(input))
-	if got[0] != "4" {
-		t.Errorf("part1: got %q, want %q", got[0], "4")
-	}
-	if got[1] != "2" {
-		t.Errorf("part2: got %q, want %q", got[1], "2")
-	}
-}
-
-// TestBlendMatchesConcatenatedGroups asserts the generator's independent-
-// group invariant: simulating the full initial blend produces, at every
-// tick, exactly the concatenation of simulating each initial-blend token
-// on its own. If any rule ever crossed group boundaries this would fail.
-func TestBlendMatchesConcatenatedGroups(t *testing.T) {
-	const ticks = 3000
-	for i := 1; i <= 5; i++ {
-		i := i
-		t.Run(fmt.Sprintf("input%02d", i), func(t *testing.T) {
-			path := filepath.Join("..", "..", "puzzles", "02", "inputs", fmt.Sprintf("%02d.txt", i))
-			data, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatalf("read %s: %v", path, err)
-			}
-			initial, rules := parseInputForTest(data)
-			if len(initial) == 0 {
-				t.Fatalf("empty initial blend")
-			}
-
-			whole := newSim(append([]string(nil), initial...), rules)
-			parts := make([]*sim, len(initial))
-			for k, tok := range initial {
-				parts[k] = newSim([]string{tok}, rules)
-			}
-
-			concat := func() []string {
-				var out []string
-				for _, p := range parts {
-					out = append(out, p.blend...)
-				}
-				return out
-			}
-			check := func(tick int64) {
-				if !slices.Equal(whole.blend, concat()) {
-					t.Fatalf("tick %d: whole blend %v != concat of groups %v",
-						tick, whole.blend, concat())
-				}
-			}
-
-			check(0)
-			whole.matchRules(0)
-			for _, p := range parts {
-				p.matchRules(0)
-			}
-			for tick := int64(1); tick <= ticks; tick++ {
-				whole.applyCompletions(tick)
-				for _, p := range parts {
-					p.applyCompletions(tick)
-				}
-				check(tick)
-				whole.matchRules(tick)
-				for _, p := range parts {
-					p.matchRules(tick)
-				}
-			}
-		})
-	}
-}
-
-// naivePart2 simulates the blend tick by tick until at least half of the
-// compounds are Ax. Bounded by maxTicks — returns -1 if never reached.
-// Purely for testing against the closed-form LCM-based Solution on tiny
-// setups whose cycle LCM is small enough to enumerate.
-func naivePart2(initial []string, rules []Rule, maxTicks int64) int64 {
-	half := func(blend []string) bool {
-		n := 0
-		for _, t := range blend {
-			if t == "Ax" {
-				n++
-			}
-		}
-		return n*2 >= len(blend)
-	}
-	s := newSim(append([]string(nil), initial...), rules)
-	if half(s.blend) {
-		return 0
-	}
-	s.matchRules(0)
-	for tick := int64(1); tick <= maxTicks; tick++ {
-		s.applyCompletions(tick)
-		if half(s.blend) {
-			return tick
-		}
-		s.matchRules(tick)
-	}
-	return -1
-}
-
-// naivePart1 simulates the blend tick by tick until any Ax appears.
-func naivePart1(initial []string, rules []Rule, maxTicks int64) int64 {
-	s := newSim(append([]string(nil), initial...), rules)
-	if p := findAx(s.blend); p >= 0 {
-		return 0
-	}
-	s.matchRules(0)
-	for tick := int64(1); tick <= maxTicks; tick++ {
-		s.applyCompletions(tick)
-		if p := findAx(s.blend); p >= 0 {
-			return tick * int64(p+1)
-		}
-		s.matchRules(tick)
-	}
-	return -1
-}
-
-// TestSolutionAgainstNaiveSimulation builds small multi-group rule sets
-// with tiny cycle lengths and confirms Solution's LCM-based Part 2 (and
-// its Part 1) matches straight tick-by-tick simulation.
-func TestSolutionAgainstNaiveSimulation(t *testing.T) {
-	// Each entry: (initial blend, per-group rule cycles). Every group
-	// takes exactly its cycle length in ticks to return to Fs. Fs is a
-	// distinct starting token; the intermediate tokens are unique per
-	// group so the groups are independent.
-	tests := []struct {
-		name    string
-		initial string
-		rules   string
-	}{
-		{
-			name:    "cycle 3 and 5",
-			initial: "ApVn",
-			rules: `Ap 1> SmMn
-SmMn 1> SmAx
-SmAx 1> Ap
-Vn 3> HzLc
-HzLc 1> HzAx
-HzAx 1> Vn`,
-		},
-		{
-			name:    "cycles 4 and 5 (doc example)",
-			initial: "ApVn",
-			rules: `Ap 2> SmMn
-SmMn 1> SmAx
-SmAx 1> Ap
-Vn 3> HzLc
-HzLc 1> HzAx
-HzAx 1> Vn`,
-		},
-		{
-			name:    "cycles 3 5 and 7",
-			initial: "ApVnBt",
-			rules: `Ap 1> SmMn
-SmMn 1> SmAx
-SmAx 1> Ap
-Vn 3> HzLc
-HzLc 1> HzAx
-HzAx 1> Vn
-Bt 5> CdEf
-CdEf 1> CdAx
-CdAx 1> Bt`,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			input := tc.initial + "\n\n" + tc.rules + "\n"
-			got := Solution([]byte(input))
-			initial, rules := parseInputForTest([]byte(input))
-			want1 := naivePart1(initial, rules, 10_000)
-			want2 := naivePart2(initial, rules, 10_000)
-			if want1 < 0 || want2 < 0 {
-				t.Fatalf("naive simulation didn't converge: p1=%d p2=%d", want1, want2)
-			}
-			if got[0] != fmt.Sprint(want1) {
-				t.Errorf("part1: got %s, naive %d", got[0], want1)
-			}
-			if got[1] != fmt.Sprint(want2) {
-				t.Errorf("part2: got %s, naive %d", got[1], want2)
-			}
-		})
-	}
-}
-
-func parseInputForTest(input []byte) ([]string, []Rule) {
-	var initial []string
-	var rules []Rule
-	seenBlend := false
-	for _, raw := range strings.Split(string(input), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" {
-			continue
-		}
-		if !seenBlend {
-			initial = parseCompounds(line)
-			seenBlend = true
-			continue
-		}
-		if r, ok := parseRule(line); ok {
-			rules = append(rules, r)
-		}
-	}
-	return initial, rules
-}
-
-func TestSolutionEdgeCases(t *testing.T) {
+func TestSolution(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        string
 		want1, want2 string
 	}{
 		{
-			name: "cycle 2 single group",
-			// [Fs] -> [Ax] -> [Fs]. Cycle 2. Ax at pos1=1 on tick 1.
-			input: "Fs\n\nFs 1> Ax\nAx 1> Fs\n",
-			want1: "1",
-			want2: "1",
+			name: "tiny open",
+			// 3x3 open grid, S at (0,0), E at (2,2).
+			// Part 1: shortest 4-way walk = 4.
+			// Part 2: one blast jump with dr=2, dc=2 (Manhattan 4, cost 4,
+			// consumes 1 bomb) — same 4 steps. Alternatively 2 walk + 1
+			// diagonal blast (dr=1,dc=1 Manhattan 2 cost 2, plus 2 walk = 4);
+			// or two blasts each dr=1,dc=1 (2 bombs, 2+2=4). All give 4.
+			// The blast (dr=2,dc=2) from (0,0) → (2,2) has Manhattan 4 = cost 4
+			// but is a single move and reaches E in 4 total.
+			// So Part 2 = 4.
+			input: "S..\n...\n..E\n",
+			want1: "4",
+			want2: "4",
 		},
 		{
-			name: "size-change with empty-RHS decay",
-			// [Fs] -> [Ax, Tm] -> [Fs]. Decay Tm 1> and Ax 1> Fs fire in
-			// parallel at tick 1; applyCompletions R->L handles both.
-			input: "Fs\n\nFs 1> AxTm\nAx 1> Fs\nTm 1>\n",
-			want1: "1",
-			want2: "1",
+			name: "corridor with double wall",
+			// 5x5. S at (0,0). E at (4,4). Two walls at row 2 block the
+			// corridor; blasting one bomb at (2,2) clears both walls at once
+			// (i.e. jump from (1,2) to (3,2) with Manhattan 2, cost 2,
+			// consumes 1 bomb).
+			// Layout:
+			//   S...
+			//   ....
+			//   .##.  (two walls at row 2 cols 1..2)
+			//   ....
+			//   ...E
+			// Part 1: must go around the walls. Shortest walk = 8 (5 rows -1
+			// then 5 cols -1 = 8 in an open 5x5). Since walls only affect
+			// cols 1-2 at row 2, an open detour still exists.
+			// Verified walk length = 8.
+			// Part 2: jump from (1,1) with dr=2,dc=1 to (3,2) Manhattan 3,
+			// or S (0,0) -> (3,3) diagonal Manhattan 6. Cheaper: walk to
+			// (1,1), blast to (3,3) Manhattan 4 = 1 + 4 = 5, then walk 2 to
+			// (4,4)? No E is (4,4).
+			// Optimal blast from (0,0) -> (3,3) Manhattan 6 cost 6, then walk
+			// 2 to E: total 8. No gain. Try blast (0,0) -> (2,2) Manhattan 4
+			// cost 4, then walk (2,2)->(4,4)=4 total 8. Two blasts: (0,0)
+			// -> (2,2) Manhattan 4 + (2,2) -> (4,4) Manhattan 4 = 8.
+			// So Part 2 = 8 (same as Part 1) for this trivial example.
+			input: "S....\n.....\n.##..\n.....\n....E\n",
+			want1: "8",
+			want2: "8",
 		},
 		{
-			name: "size expansion 1->3",
-			// [Fs] -> [Ax, Bp, Cp] -> [Fs]. Multi-token LHS on the return leg.
-			input: "Fs\n\nFs 1> AxBpCp\nAxBpCp 1> Fs\n",
-			want1: "1",
-			want2: "1",
+			name: "zigzag corridor",
+			// 7x7 zig-zag matching the Part 1 example. Row 0 is open, then
+			// three wall bands at rows 1, 3, 5 each cover 6 of the 7 columns
+			// but leave a single-cell notch at alternating ends so a walker
+			// can snake between them:
+			//   S......
+			//   ######.  (notch at col 6)
+			//   .......
+			//   .######  (notch at col 0)
+			//   .......
+			//   ######.  (notch at col 6)
+			//   ......E
+			// Part 1: the shortest walk must traverse all three open rows in
+			// full plus the six vertical joins = 6+1+1+6+1+1+6+1+1 = 24.
+			// Part 2: Manhattan(S,E) = 12, and a monotone right/down bomb
+			// chain achieves it, e.g. bomb (0,0)->(3,0) cost 3, walk
+			// (3,0)->(4,0) 1, walk (4,0)->(4,6) 6, bomb (4,6)->(6,6) cost 2.
+			// Uses 2 bombs, total 12.
+			input: "S......\n######.\n.......\n.######\n.......\n######.\n......E\n",
+			want1: "24",
+			want2: "12",
 		},
 		{
-			name: "multi-group tick-0 fires, Ax at pos 2",
-			// Two groups, cycles 3 and 2. At tick 0 both starters fire in
-			// parallel; group 2's smolder-1 delivers its Ax at tick 1 to
-			// position 2 (0-indexed 1) of the whole blend [Fs, Ax, Is].
-			// Part 1 = tick * pos1 = 1 * 2 = 2. Part 2 = LCM(3,2) - 1 = 5.
-			input: "FsGs\n\nFs 2> AxHs\nAxHs 1> Fs\nGs 1> AxIs\nAxIs 1> Gs\n",
-			want1: "2",
-			want2: "5",
+			name: "detour with bomb shortcut",
+			// 5x5, S at (0,0), E at (4,0). Two wall bands at rows 1 and 3
+			// force the walker into a long C-shaped detour, but a single
+			// well-placed bomb cuts straight down the left edge:
+			//   S....
+			//   ####.
+			//   .....
+			//   .####
+			//   E....
+			// Part 1: right 4, down 2, left 4, down 2 = 12 (Manhattan is
+			// only 4, so the maze forces a big detour).
+			// Part 2: one bomb from (0,0) to (3,0) costs 3 (dr=3, dc=0,
+			// target is `.`), then walk (3,0)->(4,0) = 1. Total 4.
+			input: "S....\n####.\n.....\n.####\nE....\n",
+			want1: "12",
+			want2: "4",
+		},
+		{
+			name: "narrow bomb corridor",
+			// 3x3 with a wall band at row 1 covering the middle two cells.
+			// Walking is blocked; bombs are the only way through.
+			//   S..
+			//   ##.
+			//   E..
+			// Part 1: (0,0)->(0,2)=2, (0,2)->(1,2) dot, (1,2)->(2,2)=2,
+			// (2,2)->(2,0)=2 -> total 6.
+			// Part 2: single bomb (0,0)->(2,0), dr=2, dc=0, cost 2.
+			input: "S..\n##.\nE..\n",
+			want1: "6",
+			want2: "2",
+		},
+		{
+			name: "part2 example",
+			// 7x7 with outer walls, matches the puzzle example in
+			// puzzles/02/part2.md. Part 1: forced spiral of 16 steps.
+			// Part 2: bomb (1,1)->(4,1) (dr=3, dc=0, cost 3) plus 5 walk
+			// steps = 8, which equals Manhattan((1,1),(5,5)).
+			input: "#######\n#S....#\n#####.#\n#.....#\n#.#####\n#....E#\n#######\n",
+			want1: "16",
+			want2: "8",
+		},
+		{
+			name: "p1 unreachable, single dive",
+			// 2x3 with S trapped by walls; walking cannot reach E.
+			// Part 1: no walk exists -> -1.
+			// Part 2: single dive (0,0)->(0,2) at Manhattan 2 lands on E.
+			input: "S#E\n###\n",
+			want1: "-1",
+			want2: "2",
+		},
+		{
+			name: "p1 unreachable, walk then dive",
+			// 2x5; row 1 solid wall, wall at (0,3) blocks the walker.
+			// Part 1: walker stops at (0,2) -> -1.
+			// Part 2: walk 2 to (0,2), dive (0,2)->(0,4) at Manhattan 2 = 4.
+			input: "S..#E\n#####\n",
+			want1: "-1",
+			want2: "4",
+		},
+		{
+			name: "bigger example",
+			// 15x15 recursive-backtracker maze matching the puzzle example
+			// in puzzles/02/{part1,part2}.md. S at (1,0), E at (13,13),
+			// outer border. Part 1: shortest walk 45. Part 2: two bombs at
+			// (1,4) and (12,13) open row 1 and the approach to E for a
+			// 25-step straight walk.
+			input: `
+###############
+S...#.........#
+#.###.#######.#
+#.....#.....#.#
+#.#####.###.#.#
+#.#.....#...#.#
+###.#.###.#.#.#
+#...#...#.#...#
+#.#.###.#.###.#
+#.#.....#...#.#
+#.###.###.#.#.#
+#.#...#...#...#
+#.#.###.#######
+#............E#
+###############
+`,
+			want1: "45",
+			want2: "25",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := Solution([]byte(tc.input))
+			got := Solution([]byte(strings.TrimSpace(tc.input)))
 			if len(got) != 2 {
-				t.Fatalf("expected 2 answers, got %d", len(got))
+				t.Fatalf("want 2 answers, got %d", len(got))
 			}
 			if got[0] != tc.want1 {
 				t.Errorf("part1: got %q, want %q", got[0], tc.want1)
@@ -300,6 +180,15 @@ func TestSolutionEdgeCases(t *testing.T) {
 				t.Errorf("part2: got %q, want %q", got[1], tc.want2)
 			}
 		})
+	}
+}
+
+func TestSolutionAdjacentSE(t *testing.T) {
+	// 1x2 grid, S and E on the same row. Walk takes one step; Part 2's
+	// dive graph doesn't beat that.
+	got := Solution([]byte("SE\n"))
+	if got[0] != "1" || got[1] != "1" {
+		t.Errorf("SE adjacent: got %v, want [1 1]", got)
 	}
 }
 
@@ -313,5 +202,5 @@ func TestSolutionRejectsCR(t *testing.T) {
 			t.Errorf("panic message: %v", r)
 		}
 	}()
-	Solution([]byte("Fs\r\n\r\nFs 1> Ax\r\n"))
+	Solution([]byte("S..\r\n...\r\n..E\r\n"))
 }

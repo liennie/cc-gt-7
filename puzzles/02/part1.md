@@ -1,87 +1,62 @@
-# 02: The Master's Blend {#1}
+# 02: Bunker Sprint {#1}
 
-Monday evening. The house shisha master has spent the afternoon in the
-kitchen preparing a lineup of tobacco *blends* for the night, each one a
-careful mix of his favourite flavours packed into its own bowl. You grab
-the first bowl, set an HMS on top, drop the coals into the HMS, and settle
-in. Now you just have to hope the master got the chemistry right - one
-wisp of *ash* too early and the whole pipe is spoiled.
+Monday. Over breakfast someone floats a plan for the afternoon: a
+*bunker sprint* through the old concrete WWII bunker in the woods a couple
+of kilometres north. The idea is exactly what it sounds like - line up at
+the front door, tear through the interior corridors on foot, and clock
+out the moment you punch the emergency exit on the far side. Fastest
+time wins.
 
-## Compounds and blends
-
-Every tobacco mix the master prepares is really a *blend* of flavour
-*compounds* packed one after another into the bowl.
-
-A *compound* is a two-letter token: an uppercase letter followed by a
-lowercase letter (e.g. `Ap`, `Vn`, `Sm`, `Ax`). A *blend* is a sequence
-of compounds written back-to-back with no separators, e.g. `ApVnSmAx` is
-four compounds: `Ap`, `Vn`, `Sm`, `Ax`.
-
-The *ash* compound is always `Ax`. Every other compound in your input is
-one of many flavours the master keeps in his cabinet.
-
-## Rules
-
-Each *rule* describes how a run of adjacent compounds transforms under
-heat. Rules are written on one line each in the form
-
-````
-*LHS* *N*> *RHS*
-````
-
-where
-
-* `LHS` is one or more compounds concatenated (the pattern to match).
-* `RHS` is zero or more compounds concatenated (the pattern produced).
-* `N` is a positive integer - the *smolder time* in ticks.
-
-At every tick, every occurrence of a rule's `LHS` in the blend causes that
-rule to fire: the matched compounds *smolder in place, unchanged, for
-exactly `N` ticks* and then, in a single atomic step, are replaced by the
-rule's `RHS`.
-
-A compound that is smoldering as part of one rule cannot simultaneously
-participate in another rule. The rules in your input are designed so that
-at every tick no two rule matches overlap.
-
-Positions in the blend are numbered starting at `1` from the left.
+Nobody wants to run it blind, so one of the more thorough souls surveyed
+the place earlier in the week and produced a tidy grid map. It is a
+`101 × 101` square, one cell per bootstep, with the front door marked
+`S` and the emergency exit on the far side marked `E`. The outer wall is
+solid rock - you can only travel through the interior cells.
 
 ## Input
 
-The first line of your puzzle input is the initial blend at tick `0`.
-Then a blank line. Then one rule per line, in no particular order.
+Your puzzle input is a grid of `101` lines, each `101` characters wide,
+drawn with the following cell tiles:
+
+```
+#   solid rock or rubble
+.   open corridor
+S   entrance - start here
+E   emergency exit - finish here
+```
+
+Movement is one step at a time, orthogonally (up / down / left / right),
+only onto `.`, `S`, or `E` cells. You may not step onto walls or leave
+the grid.
 
 ## Part 1
 
-Simulate the blend under coal. Find the *first tick at which any `Ax`
-compound is present in the blend*. Return the tick number multiplied by
-the `1`-indexed position of that `Ax` in the blend at that tick.
-
-If more than one `Ax` appears in the blend on that tick, use the position
-of the leftmost one.
+Find the length of the *shortest walk* from `S` to `E`, counting each
+step as one.
 
 ### Example
 
-```
-ApVn
+Consider a `15 × 15` grid with an outer wall of solid rock, `S` on the west
+side and `E` tucked into the south-east corner:
 
-Ap 3> HzSm
-Vn 2> LcCf
-SmLc 3> Ax
-Hz 9> Ax
-Cf 7> Ax
-```
+````
+###############
+*S*...#.........#
+#.###.#######.#
+#.....#.....#.#
+#.#####.###.#.#
+#.#.....#...#.#
+###.#.###.#.#.#
+#...#...#.#...#
+#.#.###.#.###.#
+#.#.....#...#.#
+#.###.###.#.#.#
+#.#...#...#...#
+#.#.###.#######
+#............*E*#
+###############
+````
 
-Tracing tick by tick:
-
-| tick | blend          | applied rule | matched rule |
-| ---: | :-----------   | :-------------------------------------------- | :--- |
-| 0    | `ApVn`         | | `Ap 3>`, `Vn 2>`                 |
-| 1    | `ApVn`         |  |
-| 2    | ``Ap*LcCf*``   | ``Vn 2> *LcCf*`` | `Cf 7>`                |
-| 3    | ``*HzSm*LcCf`` | ``Ap 3> *HzSm*`` | `Hz 9>`, `SmLc 3>`   |
-| ...  |                |                     |
-| 6    | ``Hz*Ax*Cf``   | ``SmLc 3> *Ax*`` (first ash)       |            |
-
-`Ax` first appears at tick *6*, at position *2* in the blend
-``Hz*Ax*Cf``, so the answer is *6 × 2* = `12`.
+Narrow corridors, dead ends and a couple of small loops fill the
+interior. Walking from `S` to `E` weaves around most of the maze; the
+shortest walk here is `45` steps.

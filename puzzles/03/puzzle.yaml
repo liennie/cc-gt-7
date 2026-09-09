@@ -1,6 +1,6 @@
 id: "03"
-path: "bunker-sprint"
-name: "03: Bunker Sprint"
+path: "boot-choreography"
+name: "03: Boot Choreography"
 
 parts:
   - id: "1"
@@ -12,25 +12,25 @@ parts:
 inputs:
   - file: inputs/01.txt
     answers:
-      - "865"
-      - "265"
+      - "-557775349"
+      - "2791931"
 
   - file: inputs/02.txt
     answers:
-      - "701"
-      - "277"
+      - "988403367"
+      - "5926868"
 
   - file: inputs/03.txt
     answers:
-      - "521"
-      - "313"
+      - "1033228639"
+      - "-7986246"
 
   - file: inputs/04.txt
     answers:
-      - "789"
-      - "257"
+      - "-1598083723"
+      - "-9450015"
 
   - file: inputs/05.txt
     answers:
-      - "697"
-      - "285"
+      - "408421131"
+      - "7824336"
