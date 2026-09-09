@@ -33,14 +33,14 @@ a **register** (single upper-case letter `A..F`) or a signed
 | `SET R V`   | `R = V`                         |
 | `ADD R V`   | `R += V`                        |
 | `SUB R V`   | `R -= V`                        |
-| `JMP O`     | jump by `O`                     |
-| `JNZ R O`   | if `R != 0`, jump by `O`        |
+| `JMP V`     | jump by `V`                     |
+| `JNZ R V`   | if `R != 0`, jump by `V`        |
 | `OUT V`     | append `V` to the output stream |
 
 Lines are numbered `0, 1, 2, ...` from the top of the program, and the
 program counter `pc` starts at line `0`. Non-jump instructions advance
-`pc` by one line. A jump instruction reads a non-zero signed offset `O`
-and sets `pc = pc + O`, where `pc` is the address of the *jump
+`pc` by one line. A jump instruction reads a non-zero signed offset `V`
+and sets `pc = pc + V`, where `pc` is the address of the *jump
 instruction itself*. `JMP 1` is therefore a no-op, `JMP 2` skips the
 next line, and `JMP -1` jumps to the previous line. Execution halts
 when `pc` walks off the end of the program.

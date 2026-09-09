@@ -104,7 +104,11 @@ func Generate(idx int) []byte {
 				mag = -mag
 			}
 			fmt.Fprintf(&buf, "LOAD %c\n", varReg)
-			fmt.Fprintf(&buf, "ADD %c %d\n", varReg, offset[i][j])
+			if offset[i][j] < 0 {
+				fmt.Fprintf(&buf, "SUB %c %d\n", varReg, -offset[i][j])
+			} else {
+				fmt.Fprintf(&buf, "ADD %c %d\n", varReg, offset[i][j])
+			}
 			fmt.Fprintf(&buf, "SET %c %d\n", ctrReg, mag)
 			if a > 0 {
 				fmt.Fprintf(&buf, "ADD %c %c\n", outReg, varReg)
