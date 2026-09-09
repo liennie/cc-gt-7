@@ -17,6 +17,9 @@ puzzles:
     unlock: 2026-09-17T10:00:00+02:00
 
 contacts:
+  - title: Notifications
+    link: https://discord.com/channels/750810991897608293/1544078325537046642
+    private: true
   - title: General discussion
     link: https://discord.com/channels/750810991897608293/1544078339881308220
     private: true
