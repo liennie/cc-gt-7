@@ -58,5 +58,26 @@ side and `E` tucked into the south-east corner:
 ````
 
 Narrow corridors, dead ends and a couple of small loops fill the
-interior. Walking from `S` to `E` weaves around most of the maze; the
-shortest walk here is `45` steps.
+interior. One of the shortest walks from `S` to `E` weaves through the
+maze like this, with each step marked by an arrow pointing where the
+racer moves next:
+
+````
+###############
+*Sv*..#*>>>>>>>>v*#
+#*v*###*^*#######*v*#
+#*>>>>^*#.....#*v*#
+#.#####.###.#*v*#
+#.#.....#...#*v*#
+###.#.###.#.#*v*#
+#...#...#.#..*v*#
+#.#.###.#.###*v*#
+#.#.....#*v<<*#*v*#
+#.###.###*v*#*^*#*v*#
+#.#...#*v<<*#*^<<*#
+#.#.###*v*#######
+#......*>>>>>>E*#
+###############
+````
+
+The shortest walk here is `45` steps.

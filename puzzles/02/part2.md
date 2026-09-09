@@ -19,24 +19,24 @@ In the example from part 1, two bombs planted at *row `2`, column `5`*
 and *row `13`, column `14`* punch a hole through the wall blocking row `1` right
 next to `S` and the wall band shielding `E`, so the racer can march
 straight along row `1` and then straight down column `13`. Below, the
-`@` cells are the two `3 × 3` craters and the *emphasised* cells trace
-the racer's route:
+`@` cells are the two `3 × 3` craters and the arrows trace the
+racer's route:
 
 ````
-###@@@#########
-*S..@@@........*#
-#.#@@@#######*.*#
-#.....#.....#*.*#
-#.#####.###.#*.*#
-#.#.....#...#*.*#
-###.#.###.#.#*.*#
-#...#...#.#..*.*#
-#.#.###.#.###*.*#
-#.#.....#...#*.*#
-#.###.###.#.#*.*#
-#.#...#...#.@*@*@
-#.#.###.####@*@*@
-#...........@*E*@
+###*@@@*#########
+*S>>>>>>>>>>>>v*#
+#.#*@@@*#######*v*#
+#.....#.....#*v*#
+#.#####.###.#*v*#
+#.#.....#...#*v*#
+###.#.###.#.#*v*#
+#...#...#.#..*v*#
+#.#.###.#.###*v*#
+#.#.....#...#*v*#
+#.###.###.#.#*v*#
+#.#...#...#.*@v@*
+#.#.###.####*@v@*
+#...........*@E@*
 ###############
 ````
 
