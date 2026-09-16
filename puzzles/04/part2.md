@@ -17,3 +17,6 @@ Continuing the example trace from part 1, counting ash as a fraction of the blen
 | 12   | ``*Ax*AxAx``  | 3         | 3/3      |
 
 Ash first reaches half at tick *9*, when ``Cf 7> *Ax*`` completes, so the answer is `9`.
+
+Note that position does not matter in this part. The answer is only the
+tick number - do not multiply it by a position.
