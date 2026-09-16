@@ -85,3 +85,7 @@ Tracing tick by tick:
 
 `Ax` first appears at tick *6*, at position *2* in the blend
 ``Hz*Ax*Cf``, so the answer is *6 × 2* = `12`.
+
+Note how the position count works: it counts *compounds*, not letters.
+The blend ``Hz*Ax*Cf`` has three compounds - `Hz`, `Ax`, `Cf` - so `Ax`
+is at position *2*, not at character *3*.
